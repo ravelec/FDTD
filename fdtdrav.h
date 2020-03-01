@@ -13,16 +13,14 @@
 #include <cufftXt.h>
 #include <cuComplex.h>
 #include <random>
-//#include <random>
 
 //using namespace std;
 using std::cout;
 using std::endl;
 
 #define WIDTH 4
-//#define NUMDEV 3
 
-
+//check errors on screen
 static void HandleError(cudaError_t err, const char *file, int line) {
 	if (err != cudaSuccess) {
 		printf("%s in %s at line %d\n", cudaGetErrorString(err),
@@ -31,8 +29,10 @@ static void HandleError(cudaError_t err, const char *file, int line) {
 	}
 }
 
+//helper to check errors on screen
 #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
 
+//vectorial product in 2d
 __host__ __device__ double pvetorial2d(double ax, double ay, double bx, double by) {
 
 	double result;
@@ -42,6 +42,7 @@ __host__ __device__ double pvetorial2d(double ax, double ay, double bx, double b
 	return result;
 }
 
+//scalar product in 2d
 __host__ __device__ double pescalar(double ax, double ay, double bx, double by) {
 
 	double result = 0;
@@ -51,6 +52,7 @@ __host__ __device__ double pescalar(double ax, double ay, double bx, double by) 
 	return result;
 }
 
+//verify if this points create a triangle
 __host__ __device__ int tricheck(float pontox, float pontoy,
 	float px0, float py0, float px1, float py1, float px2, float py2,
 	float raio) {
@@ -125,6 +127,7 @@ __host__ __device__ int tricheck(float pontox, float pontoy,
 
 }
 
+//creat a thickless sector plate
 void defineSector(int NX, int NY, int NZ,
 	int MAX_X, int MAX_Y,
 	int px0, int py0, int px1, int py1, int px2, int py2, int pz0, float raio,
@@ -191,6 +194,7 @@ void defineSector(int NX, int NY, int NZ,
 
 }
 
+//calculate the index of the point in the grid
 int __host__ __device__ calc_index(float coordinate, float dxyz) {
 
 	int index;
@@ -201,6 +205,7 @@ int __host__ __device__ calc_index(float coordinate, float dxyz) {
 
 }
 
+//transpose a point
 float trans_point(float pt, float delta) {
 
 	float pt_novo;
@@ -211,6 +216,7 @@ float trans_point(float pt, float delta) {
 
 }
 
+//rotate a point
 float2 rotate_point(float2 pt, float angle_rad) {
 
 	float2 pt_novo;
@@ -245,7 +251,7 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 	float * d_Ex, float * d_Jx,
 	float * d_Ey, float * d_Jy,
 	float * d_Ez, float * d_Jz,
-    float * d_gEx, float * d_gEy, 
+	float * d_gEx, float * d_gEy, 
 	float * d_Hx, float * d_Mx, float * d_Chxh, float * d_Chxey, float * d_Chxez, float * d_Chxm,
 	float * d_Hy, float * d_My, float * d_Chyh, float * d_Chyez, float * d_Chyex, float * d_Chym,
 	float * d_Hz, float * d_Mz, float * d_Chzh, float * d_Chzex, float * d_Chzey, float * d_Chzm,
@@ -274,7 +280,7 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 	int k_real = k + gpu_offset;
     
 	//if ((threadId < (NX*NY*NZ_N)) && ((k > HA) && (k < HB) )) {
-    if ( threadId < (NX*NY*NZ_N) ) {
+    	if ( threadId < (NX*NY*NZ_N) ) {
 
 
 		// (i,j,k) coordinates of the position of the calculated vector in space
@@ -288,8 +294,8 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 		// and to E(i,j+1,k)
 		// and to E(i+1,j,k)
 		int e_threadId_k, e_threadId_j, e_threadId_i;
-        //index refering to the ghost node
-        int e_ghost_k;
+        	//index refering to the ghost node
+        	int e_ghost_k;
 
 		// calculate the i coordinate for Ex
 		//k = threadId / (NX * NY);
@@ -312,29 +318,33 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 		// calculate the index refered to E(i+1,j,k)
 		e_threadId_k = threadId + (NX * NY);
         
-        // calculate the index refered to Eghost(i,j,k = 0)
-        e_ghost_k = i + j * NX;
+        	// calculate the index refered to Eghost(i,j,k = 0)
+        	e_ghost_k = i + j * NX;
 
 
 		//**HX UPTADE 
 		// check for boundaries
 		//if ((i < NX) && (j < (NY - 1)) && (k < (NZ - 1))) {
 		if ((i < NXX) && (j < (NYY - 1)) && (k_real < (NZ - 1))) {
-
+			
 			//update Hx
-            if( k == (NZ_N - 1)){
-                
-                d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_gEy[e_ghost_k] - d_Ey[threadId])) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - d_Ez[threadId]));
+            		if( k == (NZ_N - 1)){
+				
+				//update Hx
+                		d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_gEy[e_ghost_k] - d_Ey[threadId])) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - d_Ez[threadId]));
 
-            } else {
+            		} else {
                 
-                d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_Ey[e_threadId_k] - d_Ey[threadId])) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - d_Ez[threadId]));
-                //d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_Ey[e_threadId_k] - s_Ey_Ez[tz][ty][tx].x)) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - s_Ey_Ez[tz][ty][tx].y));
+                		d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_Ey[e_threadId_k] - d_Ey[threadId])) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - d_Ez[threadId]));
+                		//d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_Ey[e_threadId_k] - s_Ey_Ez[tz][ty][tx].x)) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - s_Ey_Ez[tz][ty][tx].y));
                 
-            }
+            		}
             
-            __syncthreads();
-            sampleField( i, j, k, k_real, m,current_NX, current_NY, current_NZ_N, NZ, 1, threadId, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke,  d_Hx, Hx);
+		//synchronize the threads
+            	__syncthreads();
+		
+		//sample Hx field	
+            	sampleField( i, j, k, k_real, m,current_NX, current_NY, current_NZ_N, NZ, 1, threadId, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke,  d_Hx, Hx);
             
 
 		}
@@ -347,14 +357,14 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 		if ((i < (NXX - 1)) && (j < (NYY)) && (k_real < (NZ - 1))) {
 
 			//update Hy
-            if( k == (NZ_N - 1)){
+            		if( k == (NZ_N - 1)){
                 
-                d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (d_Ez[e_threadId_i] - d_Ez[threadId])) + (d_Chyex[threadId] * (d_gEx[e_ghost_k] - d_Ex[threadId]));
+                		d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (d_Ez[e_threadId_i] - d_Ez[threadId])) + (d_Chyex[threadId] * (d_gEx[e_ghost_k] - d_Ex[threadId]));
                
-            } else {
+            		} else {
                 
-                d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (d_Ez[e_threadId_i] - d_Ez[threadId])) + (d_Chyex[threadId] * (d_Ex[e_threadId_k] - d_Ex[threadId]));
-                //d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (s_Ey_Ez[tz][ty][tx + 1].y - s_Ey_Ez[tz][ty][tx].y)) + (d_Chyex[threadId] * (d_Ex[e_threadId_k] - d_Ex[threadId]));
+                		d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (d_Ez[e_threadId_i] - d_Ez[threadId])) + (d_Chyex[threadId] * (d_Ex[e_threadId_k] - d_Ex[threadId]));
+                		//d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (s_Ey_Ez[tz][ty][tx + 1].y - s_Ey_Ez[tz][ty][tx].y)) + (d_Chyex[threadId] * (d_Ex[e_threadId_k] - d_Ex[threadId]));
                 
             }
             __syncthreads();
