@@ -234,15 +234,15 @@ float2 rotate_point(float2 pt, float angle_rad) {
 __host__ __device__ void sampleField(int i, int j, int k, int k_real, int m, int volt_NX, int volt_NY, int volt_NZ_N, int volt_NZ, int offset, int threadId,
                                      int sampled_is, int sampled_js, int sampled_ks, int sampled_ie, int sampled_je, int sampled_ke,
                                      float * q, float * qSamp){
-    
+
     if ((i >= (sampled_is - offset)) && (i <= (sampled_ie)) && (j >= (sampled_js - offset)) && (j <= (sampled_je)) && (k_real >= (sampled_ks - offset)) && (k_real <= (sampled_ke)) ) {
 
-        
+
         qSamp[(( i - (sampled_is - offset)) + (j- (sampled_js - offset) )*volt_NX + (k * volt_NX * volt_NY) + (m * volt_NX * volt_NY * volt_NZ_N))] = q[threadId];
 
-        
+
     }
-    
+
 }
 
 //Kernel to calculate The Magnetic field
@@ -251,7 +251,7 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 	float * d_Ex, float * d_Jx,
 	float * d_Ey, float * d_Jy,
 	float * d_Ez, float * d_Jz,
-	float * d_gEx, float * d_gEy, 
+	float * d_gEx, float * d_gEy,
 	float * d_Hx, float * d_Mx, float * d_Chxh, float * d_Chxey, float * d_Chxez, float * d_Chxm,
 	float * d_Hy, float * d_My, float * d_Chyh, float * d_Chyez, float * d_Chyex, float * d_Chym,
 	float * d_Hz, float * d_Mz, float * d_Chzh, float * d_Chzex, float * d_Chzey, float * d_Chzm,
@@ -276,10 +276,10 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 
 	//threads global index
 	int threadId = i + j * NX + k * NX * NY;
-    
+
 	int k_real = k + gpu_offset;
-    
-	//if ((threadId < (NX*NY*NZ_N)) && ((k > HA) && (k < HB) )) {
+
+			//if ((threadId < (NX*NY*NZ_N)) && ((k > HA) && (k < HB) )) {
     	if ( threadId < (NX*NY*NZ_N) ) {
 
 
@@ -317,55 +317,55 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 
 		// calculate the index refered to E(i+1,j,k)
 		e_threadId_k = threadId + (NX * NY);
-        
+
         	// calculate the index refered to Eghost(i,j,k = 0)
         	e_ghost_k = i + j * NX;
 
 
-		//**HX UPTADE 
+		//**HX UPTADE
 		// check for boundaries
 		//if ((i < NX) && (j < (NY - 1)) && (k < (NZ - 1))) {
 		if ((i < NXX) && (j < (NYY - 1)) && (k_real < (NZ - 1))) {
-			
+
 			//update Hx
             		if( k == (NZ_N - 1)){
-				
+
 				//update Hx
                 		d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_gEy[e_ghost_k] - d_Ey[threadId])) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - d_Ez[threadId]));
 
             		} else {
-                
+
                 		d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_Ey[e_threadId_k] - d_Ey[threadId])) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - d_Ez[threadId]));
                 		//d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_Ey[e_threadId_k] - s_Ey_Ez[tz][ty][tx].x)) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - s_Ey_Ez[tz][ty][tx].y));
-                
+
             		}
-            
+
 		//synchronize the threads
             	__syncthreads();
-		
-		//sample Hx field	
+
+		//sample Hx field
             	sampleField( i, j, k, k_real, m,current_NX, current_NY, current_NZ_N, NZ, 1, threadId, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke,  d_Hx, Hx);
-            
+
 
 		}
 		//synchronize the threads
 		__syncthreads();
 
-		//**HY UPTADE 
+		//**HY UPTADE
 		// check for boundaries
 		//if ((i < (NX - 1)) && (j < (NY)) && (k < (NZ - 1))) {
 		if ((i < (NXX - 1)) && (j < (NYY)) && (k_real < (NZ - 1))) {
 
 			//update Hy
             		if( k == (NZ_N - 1)){
-                
+
                 		d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (d_Ez[e_threadId_i] - d_Ez[threadId])) + (d_Chyex[threadId] * (d_gEx[e_ghost_k] - d_Ex[threadId]));
-               
+
             		} else {
-                
+
                 		d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (d_Ez[e_threadId_i] - d_Ez[threadId])) + (d_Chyex[threadId] * (d_Ex[e_threadId_k] - d_Ex[threadId]));
                 		//d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (s_Ey_Ez[tz][ty][tx + 1].y - s_Ey_Ez[tz][ty][tx].y)) + (d_Chyex[threadId] * (d_Ex[e_threadId_k] - d_Ex[threadId]));
-                
+
             }
             __syncthreads();
             //sampling Hy field
@@ -376,7 +376,7 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 		__syncthreads();
 
 
-		//**HZ UPTADE 
+		//**HZ UPTADE
 		// check for boundaries
 		//if ((i < (NX - 1)) && (j < (NY - 1)) && (k < (NZ))) {
 		if ((i < (NXX - 1)) && (j < (NYY - 1)) && (k_real < (NZ))) {
@@ -499,19 +499,19 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 			//if ((i < (NX)) && (j < (NY)) && (k < (pml_z_n))) {
 
             if( k == (NZ_N - 1)){
-                
+
                 d_Psi_hxz[threadId] = d_cpml_b_mz[k] * d_Psi_hxz[threadId] + d_cpml_a_mz[k] * (d_gEy[e_ghost_k] - d_Ey[threadId]);
 
                 d_Psi_hyz[threadId] = d_cpml_b_mz[k] * d_Psi_hyz[threadId] + d_cpml_a_mz[k] * (d_gEx[e_ghost_k] - d_Ex[threadId]);
-                
+
             } else {
 
                 d_Psi_hxz[threadId] = d_cpml_b_mz[k] * d_Psi_hxz[threadId] + d_cpml_a_mz[k] * (d_Ey[e_threadId_k] - d_Ey[threadId]);
 
                 d_Psi_hyz[threadId] = d_cpml_b_mz[k] * d_Psi_hyz[threadId] + d_cpml_a_mz[k] * (d_Ex[e_threadId_k] - d_Ex[threadId]);
-                
+
             }
-            
+
 			if (j < (NYY - 1)) {
 				//if (j < (NY - 1)) {
 
@@ -533,19 +533,19 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 			//if ((k >(NZ - pml_z_p - 1)) && (i < (NX)) && (j < (NY)) && (k < (NZ - 1))) {
 
             if(k == (NZ_N - 1)){
-                
+
                 d_Psi_hxz[threadId] = d_cpml_b_mz[k] * d_Psi_hxz[threadId] + d_cpml_a_mz[k] * (d_gEy[e_ghost_k] - d_Ey[threadId]);
 
                 d_Psi_hyz[threadId] = d_cpml_b_mz[k] * d_Psi_hyz[threadId] + d_cpml_a_mz[k] * (d_gEx[e_ghost_k] - d_Ex[threadId]);
-                
+
             } else {
-                
+
                 d_Psi_hxz[threadId] = d_cpml_b_mz[k] * d_Psi_hxz[threadId] + d_cpml_a_mz[k] * (d_Ey[e_threadId_k] - d_Ey[threadId]);
 
                 d_Psi_hyz[threadId] = d_cpml_b_mz[k] * d_Psi_hyz[threadId] + d_cpml_a_mz[k] * (d_Ex[e_threadId_k] - d_Ex[threadId]);
-                
+
             }
-            
+
 			if (j < (NYY - 1)) {
 				//if (j < (NY - 1)) {
 
@@ -561,11 +561,11 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 
 		}
 		__syncthreads();
-        
+
         //sampleField( i, j, k, k_real, m,current_NX, current_NY, current_NZ_N, NZ, 1, k_offset, threadId, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_curret_ke,  d_Hx, Hx);
-        
+
         //sampleField( i, j, k, k_real, m,current_NX, current_NY, current_NZ_N, NZ, 1, k_offset, threadId, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke,  d_Hy, Hy);
-        
+
         //sampleField( i, j, k, k_real, m,current_NX, current_NY, current_NZ_N, NZ, 1, k_offset, threadId, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke,  d_Hz, Hz);
 
 	}
@@ -582,7 +582,7 @@ __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 	float * d_Hx, float * d_Mx,
 	float * d_Hy, float * d_My,
 	float * d_Hz, float * d_Mz,
-    float * d_gHx, float * d_gHy, 
+    float * d_gHx, float * d_gHy,
 	float * d_cpml_b_ex, float * d_cpml_a_ex,
 	float * d_cpml_b_ey, float * d_cpml_a_ey,
 	float * d_cpml_b_ez, float * d_cpml_a_ez,
@@ -604,11 +604,11 @@ __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 
 	//index of current thread
 	int threadId = i + j * NX + k * NX * NY;
-    
+
 	//real value of k from the simulation space
 	int k_real = k + gpu_offset;
-    
-    
+
+
     //index of current thread to voltage
     //int threadIdVolt;
 
@@ -644,12 +644,12 @@ __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 		//calculate the index refered to Hz(i -1, j, k)
 		d_threadId_i = threadId - 1;
 
-		// calculate the index refered to Hz(i,j-1,k) 
+		// calculate the index refered to Hz(i,j-1,k)
 		d_threadId_j = threadId - NX;
 
 		// calculate the index refered to H(i-1,j,k)
 		d_threadId_k = threadId - (NX * NY);
-        
+
         //ghost node index
         d_ghost_k =  i + j * NX;
 
@@ -666,20 +666,20 @@ __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 
 			//update Ex
             if(k == (0)){
-            
+
                  d_Ex[threadId] = (d_Cexe[threadId] * d_Ex[threadId]) + (d_Cexhz[threadId] * (d_Hz[threadId] - d_Hz[d_threadId_j])) + (d_Cexhy[threadId] * (d_Hy[threadId] - d_gHy[d_ghost_k]));
-                
+
             } else {
-			
+
                 d_Ex[threadId] = (d_Cexe[threadId] * d_Ex[threadId]) + (d_Cexhz[threadId] * (d_Hz[threadId] - d_Hz[d_threadId_j])) + (d_Cexhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_k]));
                 //d_Ex[threadId] = (d_Cexe[threadId] * d_Ex[threadId]) + (d_Cexhz[threadId] * (s_Hy_Hz[tz][ty][tx + WIDTH*WIDTH].y - d_Hz[d_threadId_j])) + (d_Cexhy[threadId] * (s_Hy_Hz[tz][ty][tx + WIDTH*WIDTH].x - d_Hy[d_threadId_k]));
-                
+
             }
             //source
 			//if ((i >= (source_is)) && (i < (source_ie)) && (j >= (source_js)) && (j <= (source_je)) && (k_real >= (source_ks)) && (k_real <= (source_ke))) {
 
 				//d_Ex[threadId] = d_Ex[threadId] + d_Cexj[threadId] * d_signal_per_node[m];
-                
+
 			//}
 
 
@@ -697,11 +697,11 @@ __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 
 			//update Ey
             if(k == (0)){
-                
-                d_Ey[threadId] = (d_Ceye[threadId] * d_Ey[threadId]) + (d_Ceyhx[threadId] * (d_Hx[threadId] - d_gHx[d_ghost_k])) + (d_Ceyhz[threadId] * (d_Hz[threadId] - d_Hz[d_threadId_i]));                
-                
+
+                d_Ey[threadId] = (d_Ceye[threadId] * d_Ey[threadId]) + (d_Ceyhx[threadId] * (d_Hx[threadId] - d_gHx[d_ghost_k])) + (d_Ceyhz[threadId] * (d_Hz[threadId] - d_Hz[d_threadId_i]));
+
             } else {
-                
+
                 d_Ey[threadId] = (d_Ceye[threadId] * d_Ey[threadId]) + (d_Ceyhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_k])) + (d_Ceyhz[threadId] * (d_Hz[threadId] - d_Hz[d_threadId_i]));
                 //d_Ey[threadId] = (d_Ceye[threadId] * d_Ey[threadId]) + (d_Ceyhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_k])) + (d_Ceyhz[threadId] * (s_Hy_Hz[tz][ty][tx + WIDTH*WIDTH].y - s_Hy_Hz[tz][ty][tx + WIDTH*WIDTH - 1].y));
 
@@ -722,18 +722,18 @@ __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 			//update Ez
 			//d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j]));
 			//d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (s_Hy_Hz[tz][ty][tx + WIDTH*WIDTH].x - s_Hy_Hz[tz][ty][tx + WIDTH*WIDTH - 1].x)) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j]));
-            
+
             if ((i >= (source_is)) && (i <= (source_ie)) && (j >= (source_js)) && (j <= (source_je)) && (k_real >= (source_ks)) && (k_real < (source_ke))) {
 
 				d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j])) + d_Cezj[threadId] * (d_signal_per_node[m]);
-			
+
             } else {
-                
+
                 d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j]));
-			
-                
+
+
             }
-			
+
             //synchronize the threads
             //__syncthreads();
             //sample Ez
@@ -851,17 +851,17 @@ __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 		if ((i < (NXX - 1)) && (j < (NYY - 1)) && (k_real > 0) && (k_real < (pml_z_n))) {
 
             if(k == (0)) {
-                
+
                  d_Psi_exz[threadId] = d_cpml_b_ez[k] * d_Psi_exz[threadId] + d_cpml_a_ez[k] * (d_Hy[threadId] - d_gHy[d_ghost_k]);
 
                 d_Psi_eyz[threadId] = d_cpml_b_ez[k] * d_Psi_eyz[threadId] + d_cpml_a_ez[k] * (d_Hx[threadId] - d_gHx[d_ghost_k]);
-                
+
             } else {
-                
+
                 d_Psi_exz[threadId] = d_cpml_b_ez[k] * d_Psi_exz[threadId] + d_cpml_a_ez[k] * (d_Hy[threadId] - d_Hy[d_threadId_k]);
 
                 d_Psi_eyz[threadId] = d_cpml_b_ez[k] * d_Psi_eyz[threadId] + d_cpml_a_ez[k] * (d_Hx[threadId] - d_Hx[d_threadId_k]);
-                
+
             }
 			if (j > 0) {
 
@@ -884,18 +884,18 @@ __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 		if ((i < (NXX - 1)) && (j < (NYY - 1)) && (k_real >(NZ - pml_z_p - 1)) && (k_real < (NZ - 1))) {
 
             if(k == (0)){
-            
+
                 d_Psi_exz[threadId] = d_cpml_b_ez[k] * d_Psi_exz[threadId] + d_cpml_a_ez[k] * (d_Hy[threadId] - d_gHy[d_ghost_k]);
 
                 d_Psi_eyz[threadId] = d_cpml_b_ez[k] * d_Psi_eyz[threadId] + d_cpml_a_ez[k] * (d_Hx[threadId] - d_gHx[d_ghost_k]);
-                
+
             } else {
-			
+
                 d_Psi_exz[threadId] = d_cpml_b_ez[k] * d_Psi_exz[threadId] + d_cpml_a_ez[k] * (d_Hy[threadId] - d_Hy[d_threadId_k]);
 
                 d_Psi_eyz[threadId] = d_cpml_b_ez[k] * d_Psi_eyz[threadId] + d_cpml_a_ez[k] * (d_Hx[threadId] - d_Hx[d_threadId_k]);
             }
-            
+
 			if (j > 0) {
 
 				d_Ex[threadId] = d_Ex[threadId] + d_cpsi_exz[threadId] * d_Psi_exz[threadId];
@@ -909,8 +909,8 @@ __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 
 			}
 		}
-		
-		
+
+
 	}
 }
 
@@ -1432,7 +1432,7 @@ __global__ void defineSourceZ(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N
 	float rs,
 	float dx, float dy, float dz, float dt,
 	float eps_0) {
-        
+
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         int j = blockIdx.y * blockDim.y + threadIdx.y;
         int k = blockIdx.z * blockDim.z + threadIdx.z;
@@ -1440,7 +1440,7 @@ __global__ void defineSourceZ(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N
         int idx = i + j * NX + k * NX * NY;
 
         int k_real = k + gpu_offset;
-        
+
 		float r_comp;
 		float rfactor;
 
@@ -1455,18 +1455,18 @@ __global__ void defineSourceZ(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N
 
         _ks = (float)resistor_ks;
         _ke = (float)resistor_ke;
-        
+
         //resistance per component
 		r_comp = (1 + _ie - _is) * (1 + _je - _js) / (_ke - _ks);
 		r_comp = r_comp * rs;
 		//resistor factor Z oriented
 		rfactor = (dt*dz) / (r_comp*dx*dy);
-        
+
 		//For loop to set values to the electric and magnetic coeficients related to the sources Z direction
         if (idx < (NX*NY*NZ_N)) {
-        
-           
-		if ((i >= (resistor_is)) && (i <= (resistor_ie)) && (j >= (resistor_js)) && (j <= (resistor_je)) && (k_real >= (resistor_ks)) && (k_real < (resistor_ke)) ) { 
+
+
+		if ((i >= (resistor_is)) && (i <= (resistor_ie)) && (j >= (resistor_js)) && (j <= (resistor_je)) && (k_real >= (resistor_ks)) && (k_real < (resistor_ke)) ) {
 			//for (int k = ks; k < (ke); k++) {
 				//for (int j = js; j < (je + 1); j++) {
 					//for (int i = is; i < (ie + 1); i++) {
@@ -2162,23 +2162,23 @@ __global__ void setABCPML(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, in
 
 //adjust the voltage array
 __global__ void sampledAdj(int NUMDEV, float * d_sampled, float * d_sampled0, int n_t_steps){
-    
+
 	int threadId = blockIdx.x * blockDim.x + threadIdx.x;
-    
+
     float sampled_sum = 0;
 
-    
+
     if(threadId < n_t_steps){
-        
+
         for(int i = 0; i < NUMDEV; i++){
-        
+
            sampled_sum  = sampled_sum + d_sampled0[threadId + n_t_steps*i];
 
         }
-        
+
         d_sampled[threadId] = sampled_sum;
     }
-    
+
 }
 
 //calculate voltage on multiple gp
@@ -2186,9 +2186,9 @@ __global__ void voltMgpu(int volt_NX, int volt_NY, int volt_NZ, int volt_NZ_N, i
 	int sampled_voltage_is, int sampled_voltage_js, int sampled_voltage_ks, int sampled_voltage_ie, int sampled_voltage_je, int sampled_voltage_ke,
     float * d_volt_tran, float * E,
 	float dx, float dy, float dz, int n_t_steps, int direction){
-    
+
     float csuf = 0;
-    
+
 	float _is, _ie;
     float _js, _je;
     float _ks, _ke;
@@ -2198,7 +2198,7 @@ __global__ void voltMgpu(int volt_NX, int volt_NY, int volt_NZ, int volt_NZ_N, i
 	int threadId = blockIdx.x * blockDim.x + threadIdx.x;
 
 	int idx_voltage = 0;
-    
+
     _is = (float)sampled_voltage_is;
 	_js = (float)sampled_voltage_js;
 	_ks = (float)sampled_voltage_ks;
@@ -2206,18 +2206,18 @@ __global__ void voltMgpu(int volt_NX, int volt_NY, int volt_NZ, int volt_NZ_N, i
 	_ie = (float)sampled_voltage_ie;
 	_je = (float)sampled_voltage_je;
 	_ke = (float)sampled_voltage_ke;
-        
-  
-    
-    
+
+
+
+
     if(threadId < n_t_steps) {
-        
+
         switch(direction){
-            
+
             case 1:
-                
+
                 csuf = (-dx) / (((_je - _js + 1) * (_ke - _ks + 1)));
-                
+
                 for (int k = 0; k < volt_NZ_N; k++) {
 
                     for (int j = sampled_voltage_js; j <= (sampled_voltage_je); j++) {
@@ -2230,28 +2230,28 @@ __global__ void voltMgpu(int volt_NX, int volt_NY, int volt_NZ, int volt_NZ_N, i
                                     idx_voltage = (i - sampled_voltage_is) + (j - sampled_voltage_js) * volt_NX + (k) * volt_NX * volt_NY + threadId * volt_NX * volt_NY * volt_NZ_N;
 
                                     voltage = voltage + E[idx_voltage];
-                                    
+
                             }
                         }
                     }
                 }
 
                 d_volt_tran[threadId] = voltage*csuf;
-                
+
                 break;
-            
+
             case 2:
-                
+
                 csuf = (-dy) / (((_ke - _ks + 1) * (_ie - _is + 1)));
-                
+
                 for( int k = 0; k < volt_NZ_N; k++){
-                    
+
                     for (int j = sampled_voltage_js; j < (sampled_voltage_je); j++) {
-                        
+
                         for (int i = sampled_voltage_is; i <= (sampled_voltage_ie); i++) {
-                            
+
                             if( ((k+gpu_offset) >= sampled_voltage_ks) && ((k+gpu_offset) <= sampled_voltage_ke) ) {
-                                    
+
                                     //3d to 1d index
                                     idx_voltage = (i - sampled_voltage_is) + (j - sampled_voltage_js) * volt_NX + (k) * volt_NX * volt_NY + threadId * volt_NX * volt_NY * volt_NZ_N;
 
@@ -2260,23 +2260,23 @@ __global__ void voltMgpu(int volt_NX, int volt_NY, int volt_NZ, int volt_NZ_N, i
                         }
                     }
                 }
-        
+
                 d_volt_tran[threadId] = voltage*csuf;
-                
+
                 break;
-                
+
             case 3:
-                
+
                 csuf = (-dz) / (((_ie - _is + 1) * (_je - _js + 1)));
-                
+
                 for( int k = 0; k < volt_NZ_N; k++){
-                    
+
                     for (int j = sampled_voltage_js; j <= (sampled_voltage_je); j++) {
-                        
+
                         for (int i = sampled_voltage_is; i <= (sampled_voltage_ie); i++) {
-                            
+
                             if( ((k+gpu_offset) >= sampled_voltage_ks) && ((k+gpu_offset) < sampled_voltage_ke)   ) {
-                                    
+
                                     //3d to 1d index
                                     idx_voltage = (i - sampled_voltage_is) + (j - sampled_voltage_js) * volt_NX + (k) * volt_NX * volt_NY + threadId * volt_NX * volt_NY * volt_NZ_N;
 
@@ -2285,16 +2285,16 @@ __global__ void voltMgpu(int volt_NX, int volt_NY, int volt_NZ, int volt_NZ_N, i
                         }
                     }
                 }
-        
+
                 d_volt_tran[threadId] = voltage*csuf;
-                
+
                 break;
         }
-     
+
 
     }
-    
-    
+
+
 }
 
 //calculate current on multiple gpu
@@ -2302,9 +2302,9 @@ __global__ void currMgpu(int current_NX, int current_NY, int current_NZ, int cur
 	int sampled_current_is, int sampled_current_js, int sampled_current_ks, int sampled_current_ie, int sampled_current_je, int sampled_current_ke,
 	float * d_current_tran, float * Hx, float * Hy, float * Hz,
 	float dx, float dy, float dz, int n_t_steps, int direction){
-    
+
 	int threadId = blockIdx.x * blockDim.x + threadIdx.x;
-    
+
     int k_real;
 	int idx;
     float sum_xp = 0;
@@ -2313,73 +2313,73 @@ __global__ void currMgpu(int current_NX, int current_NY, int current_NZ, int cur
 	float sum_yn = 0;
 	float sum_zp = 0;
 	float sum_zn = 0;
-    
-    
-    
+
+
+
     if((threadId < n_t_steps)) {
-        
+
         switch(direction){
-            
+
             case 1:
-                
-                 
+
+
                 for(int k=0; k < current_NZ_N; k++){
-            
+
                     k_real = k + gpu_offset;
-                    
+
                     for (int j = 1; j < (current_NY); j++) {
-                        
+
                         //Calculate sampled current sum_yp
                         if(k_real == (sampled_current_ks - 1)){
-                            
+
                             //3d to 1d index
                             idx = ((current_NX-1) -1) + (j)* current_NX + (k) * current_NX *current_NY + threadId * current_NX *current_NY * current_NZ_N;
-                
+
                             sum_yp = sum_yp + Hy[idx];
-                    
+
                         }
-                        
+
                         //Calculate sampled current sum_yn
                         if(k_real == (sampled_current_ke)){
-                            
+
                              //3d to 1d index
                             idx = ((current_NX-1) - 1) + (j)* current_NX + (k)* current_NX * current_NY + threadId * current_NX *current_NY * current_NZ_N;
 
                             sum_yn = sum_yn + Hy[idx];
-                        
+
                         }
-                
+
                     }
-                    
+
                     //Calculate sampled current sum_zp
                     //Calculate sampled current sum_zn
                     if((k_real >= sampled_current_ks) && (k_real <= sampled_current_ke)){
-                
-                        
+
+
                         //3d to 1d index
                         idx = ((current_NX-1) - 1) + (current_NY-1) * current_NX + k * current_NX * current_NY+ threadId * current_NX *current_NY * current_NZ_N;
 
                         sum_zp = sum_zp + Hz[idx];
-                        
+
                         //3d to 1d index
                         idx = ((current_NX - 1) -1) + (0) * current_NX + k * current_NX * current_NY + threadId * current_NX *current_NY * current_NZ_N;
 
                         sum_zn = sum_zn + Hz[idx];
-                        
+
                     }
-                
+
                 }
-            
+
                 d_current_tran[threadId] = dy*sum_yp + dz*sum_zp - dy*sum_yn - dz*sum_zn;
-                
+
                 break;
-                
+
             case 2:
-                
+
                 for (int k = 0; k < current_NZ_N; k++) {
 
                     k_real = k + gpu_offset;
-                    
+
                     //Calculate sampled current sum_zp
                     //Calculate sampled current sum_zn
                     if((k_real >= sampled_current_ks) && (k_real <= sampled_current_ke)){
@@ -2388,51 +2388,51 @@ __global__ void currMgpu(int current_NX, int current_NY, int current_NZ, int cur
                         idx = (0) + ((current_NY - 1) - 1) * current_NX + k * current_NX * current_NY + threadId * current_NX * current_NY * current_NZ_N;
 
                         sum_zp = sum_zp + Hz[idx];
-                        
+
                         //3d to 1d index
                         idx = (current_NX-1) + ((current_NY-1) - 1) * current_NX + k * current_NX * current_NY + threadId * current_NX * current_NY * current_NZ_N;
 
                         sum_zn = sum_zn + Hz[idx];
 
                     }
-                    
+
                     for (int i = 1; i < current_NX; i++) {
-                        
+
                         //Calculate sampled current sum_xp
                         if((k_real == sampled_current_ke)){
-                            
+
                             //3d to 1d index
                             idx = i + ((current_NY - 1) - 1) * current_NX + k * current_NX * current_NY + threadId * current_NX * current_NY * current_NZ_N;
 
                             sum_xp = sum_xp + Hx[idx];
-                            
+
                         }
-                        
-                        //Calculate sampled current sum_xn  
+
+                        //Calculate sampled current sum_xn
                         if((k_real == (sampled_current_ks - 1))){
-                            
+
                             //3d to 1d index
                             idx = i + ((current_NY - 1)- 1)* current_NX + (k) * current_NX * current_NY + threadId * current_NX * current_NY * current_NZ_N;
 
                             sum_xn = sum_xn + Hx[idx];
-                            
+
                         }
                     }
-                    
+
                 }
-                
+
                 d_current_tran[threadId] = dz * sum_zp + dx*sum_xp - dz*sum_zn - dx*sum_xn;
-                
+
                 break;
-                
+
             case 3:
-                
+
                for (int k = 0; k < current_NZ_N; k++) {
 
                     k_real = k + gpu_offset;
-                    
+
                     for (int i = 1; i < current_NX; i++) {
-                    
+
                         //Calculate sampled current sum_xp
                         if((k_real == (sampled_current_ke - 1))){
                                 //3d to 1d index
@@ -2440,51 +2440,51 @@ __global__ void currMgpu(int current_NX, int current_NY, int current_NZ, int cur
 
                                 sum_xp = sum_xp + Hx[idx];
                         }
-                        
+
                         //Calculate sampled current sum_xn
                         if((k_real == (sampled_current_ke - 1))){
-                        
+
                             //3d to 1d index
                             idx = i + (current_NY - 1)* current_NX +  (k) * current_NX * current_NY + threadId * current_NX * current_NY * current_NZ_N;
 
                             sum_xn = sum_xn + Hx[idx];
-                            
+
                         }
                     }
-                    
+
                     for (int j = 1; j < (current_NY); j++) {
-                        
+
                         //Calculate sampled current sum_yp
                         if((k_real == (sampled_current_ke - 1))){
-                            
+
                             //3d to 1d index
                             idx = (current_NX - 1)+(j)* current_NX + (k) * current_NX * current_NY + threadId * current_NX * current_NY * current_NZ_N;
 
                             sum_yp = sum_yp + Hy[idx];
 
                         }
-                        
+
                         //Calculate sampled current sum_yn
                         if((k_real == (sampled_current_ke - 1))){
-                        
+
                             //3d to 1d index
                             idx = (0) + (j)* current_NX + (k) * current_NX * current_NY + threadId * current_NX * current_NY * current_NZ_N;
 
                             sum_yn = sum_yn + Hy[idx];
-                            
+
                         }
                     }
-                   
+
             }
 
                 d_current_tran[threadId] = dy * sum_yp + dx*sum_xp - dy*sum_yn - dx*sum_xn;
-                
-                break; 
-            
+
+                break;
+
         }
-        
+
     }
-	
+
 }
 
 __global__ void correcI(float * I, int n_t_steps) {
@@ -2495,13 +2495,13 @@ __global__ void correcI(float * I, int n_t_steps) {
 	//float aux;
 
     if(threadId < n_t_steps){
-	
+
         if (threadId < (n_t_steps - 1)) {
 
             I[threadId] = (I[threadId] + I[threadId + 1]) / 2;
 
         } else {
-            
+
             I[threadId] = (I[threadId] + I[threadId - 1]) / 2;
         }
     }
@@ -2986,13 +2986,13 @@ void avFobj(float *pop, int npop, int nvar, float * result) {
 */
 
 void calc_otm(float * d_voltage, float * d_current, int n_t_steps, float z0, float dt, int grid, int block) {
-    
+
     cuFloatComplex z;
     z.x = z0;
     z.y = 0;
     cudaSetDevice(0);
-    cufftResult result;  
-    
+    cufftResult result;
+
     //Frquency variables
     cuFloatComplex *d_V, *d_I;
     cuFloatComplex *d_a, *d_b;
@@ -3033,12 +3033,12 @@ void calc_otm(float * d_voltage, float * d_current, int n_t_steps, float z0, flo
     cudaDeviceSynchronize();
 
     cufftDestroy(plan);
-    
+
     HANDLE_ERROR(cudaMemcpy(h_V, d_V, sizeof(cuFloatComplex)*(n_t_steps / 2 + 1), cudaMemcpyDeviceToHost));
     saveComplex(h_V, n_t_steps, dt, 1005);
     HANDLE_ERROR(cudaMemcpy(h_I, d_I, sizeof(cuFloatComplex)*(n_t_steps / 2 + 1), cudaMemcpyDeviceToHost));
     saveComplex(h_I, n_t_steps, dt, 1006);
-    
+
     c_zinS11 << <grid, block >> > (d_V, d_I, (n_t_steps), d_a, d_b, d_s11, d_zin, z, dt);
 
     HANDLE_ERROR(cudaMemcpy(h_s11, d_s11, sizeof(cuFloatComplex)*(n_t_steps / 2 + 1), cudaMemcpyDeviceToHost));
@@ -3047,7 +3047,7 @@ void calc_otm(float * d_voltage, float * d_current, int n_t_steps, float z0, flo
     saveComplex(h_s11, n_t_steps, dt, 1007);
     saveImpImag(h_zin, n_t_steps, dt, 1008);
     saveImpReal(h_zin, n_t_steps, dt, 1009);
-    
+
 }
 
 /*
@@ -3131,7 +3131,7 @@ void calcVoltCurrent(int NUMDEV, float dx, float dy, float dz, int n_t_steps, in
         float **d_volt_tran, float **E, int voltage_direction,
         int current_NX, int current_NY, int current_NZ, int current_NZ_N,  int sampled_current_is, int sampled_current_js, int sampled_current_ks, int sampled_current_ie, int sampled_current_je, int sampled_current_ke, float **d_current_tran, float **Hx, float **Hy, float **Hz, int current_direction,
         float *d_volt0, float *d_voltage, float * d_curr0, float *d_current){
-    
+
     for (int i = 0; i < NUMDEV; i++){
 
         // set current device
@@ -3139,50 +3139,50 @@ void calcVoltCurrent(int NUMDEV, float dx, float dy, float dz, int n_t_steps, in
 
 		//Calculate the gpu offset
 		gpu_offset = i * volt_NZ_N;
-    
+
         voltMgpu<<<grid, block>>>(volt_NX, volt_NY, volt_NZ, volt_NZ_N, gpu_offset, sampled_voltage_is, sampled_voltage_js, sampled_voltage_ks, sampled_voltage_ie, sampled_voltage_je, sampled_voltage_ke, d_volt_tran[i], E[i], dx, dy, dz, n_t_steps, voltage_direction);
-        
+
         gpu_offset = i * current_NZ_N;
         currMgpu<<<grid, block>>>(current_NX, current_NY, current_NZ, current_NZ_N,  gpu_offset, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke, d_current_tran[i], Hx[i], Hy[i], Hz[i], dx, dy, dz, n_t_steps, current_direction);
     }
-    
+
     //synchronize devices
     for (int i = 0; i<NUMDEV; i++) {
 			cudaSetDevice(i);
 			cudaDeviceSynchronize();
     }
-    
+
     //copy voltage to GPU0
     //copy current to GPU0
     for(int i=0; i < NUMDEV; i++){
-        
+
         HANDLE_ERROR(cudaMemcpy(d_volt0 + i*n_t_steps, d_volt_tran[i], source_bt, cudaMemcpyDeviceToDevice));
-        
+
         HANDLE_ERROR(cudaMemcpy(d_curr0 + i*n_t_steps, d_current_tran[i], source_bt, cudaMemcpyDeviceToDevice));
-    
+
     }
-    
+
     //synchronize devices
     for (int i = 0; i<NUMDEV; i++) {
-        
+
 			cudaSetDevice(i);
 			cudaDeviceSynchronize();
     }
-    
+
     //Adjust voltage, current
     cudaSetDevice(0);
     sampledAdj<<<grid,block>>>(NUMDEV, d_voltage, d_volt0, n_t_steps);
     sampledAdj<<<grid,block>>>(NUMDEV, d_current, d_curr0, n_t_steps);
     correcI<<<grid,block>>>(d_current, n_t_steps);
-    
+
     //synchronize devices
     for (int i = 0; i<NUMDEV; i++) {
-        
+
 			cudaSetDevice(i);
 			cudaDeviceSynchronize();
     }
-    
-    
+
+
 }
 
 void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int gpu_offset,
@@ -3217,8 +3217,8 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 	float ** Hx, float ** Hy, float ** Hz,
     cudaStream_t * stream_copy, cudaStream_t * stream_compute, cudaEvent_t *event_i, cudaEvent_t *event_j,
     float size_bt, float ** d_sigma_e_x, float ** d_sigma_e_y, float ** d_sigma_e_z, float ** d_current_tran){
-        
-		//calculations Electric fields 
+
+		//calculations Electric fields
 		for (int i = 0; i < NUMDEV; i++)
 		{
 
@@ -3254,7 +3254,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 				sampled_voltage_is, sampled_voltage_js, sampled_voltage_ks, sampled_voltage_ie, sampled_voltage_je, sampled_voltage_ke,
 				volt_NX, volt_NY, volt_NZ_N,
 				m, E[i]);
-				
+
 		}
 
         //synchronize streams
@@ -3264,7 +3264,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 			cudaSetDevice(i);
 			cudaDeviceSynchronize();
 		}
-		
+
 		//Copying Electric Send Left
 		for (int i = 1; i < (NUMDEV); i++) {
 
@@ -3273,21 +3273,21 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 			//HANDLE_ERROR(cudaMemcpyAsync(d_Ex[i - 1] + NX*NY*(NZ_N - 1), d_Ex[i] + NX*NY, NX*NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_Hx[i]));
 			//HANDLE_ERROR(cudaMemcpyPeerAsync(d_Ex[i - 1] + NX*NY*(NZ_N - 1), i - 1, d_Ex[i] + NX*NY, i, NX*NY * sizeof(float), stream_compute[i]));
 			HANDLE_ERROR(cudaMemcpy(d_gEx[i-1], d_Ex[i], NX*NY * sizeof(float), cudaMemcpyDeviceToDevice));
-            
+
 			//EY
 			//PB[i-1] <-- HA[i]
 			//HANDLE_ERROR(cudaMemcpyAsync(d_Ey[i - 1] + NX*NY*(NZ_N - 1), d_Ey[i] + NX*NY, NX*NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_Hx[i]));
 			//HANDLE_ERROR(cudaMemcpyPeerAsync(d_Ey[i - 1] + NX*NY*(NZ_N - 1), i - 1, d_Ey[i] + NX*NY, i, NX*NY * sizeof(float), stream_compute[i]));
 			HANDLE_ERROR(cudaMemcpy(d_gEy[i-1], d_Ey[i], NX*NY * sizeof(float), cudaMemcpyDeviceToDevice));
-            
-			//EZ 
+
+			//EZ
 			//PB[i-1] <-- HA[i]
 			//HANDLE_ERROR(cudaMemcpyAsync(d_Ez[i - 1] + NX*NY*(NZ_N - 1), d_Ez[i] + NX*NY, NX*NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_Hx[i]));
 			//HANDLE_ERROR(cudaMemcpyPeerAsync(d_Ez[i - 1] + NX*NY*(NZ_N - 1), i - 1, d_Ez[i] + NX*NY, i, NX*NY * sizeof(float), stream_compute[i]));
 			//HANDLE_ERROR(cudaMemcpy(d_gEz[i-1], d_Ez[i], NX*NY * sizeof(float), cudaMemcpyDeviceToDevice));
 
 		}
-        
+
         //synchronize streams
 
         //synchronize devices
@@ -3295,7 +3295,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 			cudaSetDevice(i);
 			cudaDeviceSynchronize();
 		}
-        
+
 		//Calculations Magnetic Field
 		for (int i = 0; i < NUMDEV; i++)	{
 			// set current device
@@ -3304,7 +3304,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 			//Calculate the gpu offset
 			gpu_offset = i * NZ_N;
             volt_offset = i * volt_NZ_N;
-            
+
 			//cudaEventRecord(event_i[i], stream_compute[i]);
 
 			calc_h << < grid3d, block3d >> > (NX, NXX, NY, NYY, NZ, NZ_N, gpu_offset,
@@ -3329,7 +3329,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 				current_NX, current_NY, current_NZ_N,
 				m, Hx[i], Hy[i], Hz[i]);
 
-			
+
 		}
 
         //synchronize streams
@@ -3339,7 +3339,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 			cudaSetDevice(i);
 			cudaDeviceSynchronize();
 		}
-		
+
 		//Copying Magnetic Send Right
         for (int i = 0; i < (NUMDEV - 1); i++) {
 
@@ -3350,7 +3350,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 			//HANDLE_ERROR(cudaMemcpyAsync(d_Hx[i + 1], d_Hx[i] + NX*NY*(NZ_N - 2), NX*NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_halo[i]));
 			//HANDLE_ERROR(cudaMemcpyPeerAsync(d_Hx[i + 1], i+1, d_Hx[i] + NX*NY*(NZ_N - 2), i, NX*NY * sizeof(float), stream_compute[i]));
 			HANDLE_ERROR(cudaMemcpy(d_gHx[i+1], d_Hx[i] + NX*NY*(NZ_N - 1),NX*NY * sizeof(float), cudaMemcpyDeviceToDevice));
-			
+
 			//HY
 			//PA[i+1] <-- HB[i]
 			//HANDLE_ERROR(cudaMemcpyAsync(d_Hy[i + 1], d_Hy[i] + NX*NY*(NZ_N - 2), NX*NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_halo[i]));
@@ -3364,7 +3364,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 			//HANDLE_ERROR(cudaMemcpy(d_gHy[i+1], d_Hy[i] + NX*NY*(NZ_N - 1), NX*NY * sizeof(float), cudaMemcpyDeviceToDevice));
 
 		}
-		
+
 		//synchronize streams
 
         //synchronize devices
@@ -3372,14 +3372,14 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 			cudaSetDevice(i);
 			cudaDeviceSynchronize();
 		}
-        
+
 		//testing saving E fields
 		for (int i = 0; i < NUMDEV; i++) {
 
 			cudaSetDevice(i);
 
 			//HANDLE_ERROR(cudaMemcpy(h_test[i], d_Ez[i], size_bt, cudaMemcpyDeviceToHost));
-			
+
 
 			//gpu offset
 			gpu_offset = i * NZ_N;
@@ -3395,30 +3395,30 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 					//cout << "saving" << endl;
 					//saving in k position
 					//saveFilePm3d(NX, NXX, NY, NYY, NZ_N, d_Hz[i], m/10, k);
-                    
+
                     if(m == 1999){
                         //HANDLE_ERROR(cudaMemcpy(h_test[i], d_sigma_e_x[i], size_bt, cudaMemcpyDeviceToHost));
                         //saveFilePm3d(NX, NXX, NY, NYY, NZ_N, h_test[i], 3000, k);
-                        
+
                         //HANDLE_ERROR(cudaMemcpy(h_test[i], d_sigma_e_y[i], size_bt, cudaMemcpyDeviceToHost));
                         //saveFilePm3d(NX, NXX, NY, NYY, NZ_N, h_test[i], 3001, k);
-                        
+
                         //HANDLE_ERROR(cudaMemcpy(h_test[i], d_sigma_e_z[i], size_bt, cudaMemcpyDeviceToHost));
                         //saveFilePm3d(NX, NXX, NY, NYY, NZ_N, h_test[i], 3002, k);
                     }
 				}
-				
+
 			}
 		}
-		
+
         //synchronize streams
-        
+
         //synchronize devices
         for (int i = 0; i<NUMDEV; i++) {
 			cudaSetDevice(i);
 			cudaDeviceSynchronize();
         }
-    
+
 }
 
 
@@ -3452,7 +3452,7 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
     float sampled_current_max_x, float sampled_current_max_y, float sampled_current_max_z,
     int current_direction)
 {
-    
+
     //Set fastest Device Access
 	for (int i = 0; i<NUMDEV; i++) {
 		//Set the device
@@ -3479,11 +3479,11 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 			}
 		}
 	}
-    
-    
+
+
    //Domain sizee//Domain Size coalesced
-    int NX, NY, NZ, NXX, NYY; 
-    // X direction length 
+    int NX, NY, NZ, NXX, NYY;
+    // X direction length
 	NXX = X + air_buff_x_n + air_buff_x_p + pml_x_n + pml_x_p;
 	// Y direction length
 	NYY = Y + air_buff_y_n + air_buff_y_p + pml_y_n + pml_y_p;
@@ -3496,14 +3496,14 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 
 	//Z per GPU
     int NZ_N = (NZ / NUMDEV);
-        
+
     //Global k
     int k_real = 0;
     //Offset due to multiples GPUS
     int gpu_offset = 0;
     //Offset due to multiples GPUS for the voltage calculation
     int volt_offset = 0;
-    
+
     //Print Domain Characteristics
 	//print the domain size on the screen
 	cout << "Domain Size: ";
@@ -3516,23 +3516,23 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 	cout << "Time Step: " << dt << endl;
 	cout << "Sampling Rate: " << 1 / dt << " Hz" << endl;
 	cout << "Time Steps: " << n_t_steps << endl;
-    
+
     //3d bricks
     int brick_is[brick_num], brick_js[brick_num], brick_ks[brick_num];
     int brick_ie[brick_num], brick_je[brick_num], brick_ke[brick_num];
     //brick coordinates in cells
-    
+
     if(brick_opt != 0){
-        
+
         for(int i=0; i<brick_num ; i++){
-        
+
             brick_is[i] = air_buff_x_n + pml_x_n + calc_index(brick_min_x[i] , dx);
             brick_js[i]  = air_buff_y_n + pml_y_n + calc_index(brick_min_y[i] , dy);
             brick_ks[i]  = air_buff_z_n + pml_z_n + calc_index(brick_min_z[i] , dz);
             brick_ie[i]  = air_buff_x_n + pml_x_n + calc_index(brick_max_x[i] , dx);
             brick_je[i]  = air_buff_y_n + pml_y_n + calc_index(brick_max_y[i] , dy);
             brick_ke[i]  = air_buff_z_n + pml_z_n + calc_index(brick_max_z[i] , dz);
-        
+
             cout << "brick_is[" << i << "]: " << brick_is[i];
             cout << "\t brick_ie["<< i <<"]: " << brick_ie[i] << endl;
             cout << "brick_js[" << i << "]: " << brick_js[i];
@@ -3540,40 +3540,40 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
             cout << "brick_ks[" << i << "]: " << brick_ks[i];
             cout << "\t brick_ke["<< i <<"]: " << brick_ke[i] << endl;
         }
-    
+
     }
-    
+
     //PEC plates
     int pec_is[pec_num], pec_js[pec_num], pec_ks[pec_num];
     int pec_ie[pec_num], pec_je[pec_num], pec_ke[pec_num];
     //PEC coordinates in cells
-    
+
     if(pec_opt != 0){
-        
-        for(int i=0; i<pec_num ; i++){    
-            
+
+        for(int i=0; i<pec_num ; i++){
+
             pec_is[i] = air_buff_x_n + pml_x_n + calc_index(pec_min_x[i], dx);
             pec_js[i] = air_buff_y_n + pml_y_n + calc_index(pec_min_y[i], dy);
             pec_ks[i] = air_buff_z_n + pml_z_n + calc_index(pec_min_z[i], dz);
             pec_ie[i] = air_buff_x_n + pml_x_n + calc_index(pec_max_x[i], dx);
             pec_je[i] = air_buff_y_n + pml_y_n + calc_index(pec_max_y[i], dy);
             pec_ke[i] = air_buff_z_n + pml_z_n + calc_index(pec_max_z[i], dz);
-        
+
             cout << "pec_is[" << i << "]: " << pec_is[i];
             cout << "\t pec_ie["<< i <<"]: " << pec_ie[i] << endl;
             cout << "pec_js[" << i << "]: " << pec_js[i];
             cout << "\t pec_je["<< i <<"]: " << pec_je[i] << endl;
             cout << "pec_ks[" << i << "]: " << pec_ks[i];
             cout << "\t pec_ke["<< i <<"]: " << pec_ke[i] << endl;
-            
+
         }
-    }    
-    
+    }
+
     //resistorindex in simulation domain
     int resistor_is, resistor_js, resistor_ks;
     int resistor_ie, resistor_je, resistor_ke;
     //resistor coordinates in cells
-    
+
     if(resistor_opt != 0){
 
         resistor_is = air_buff_x_n + pml_x_n + calc_index(resistor_min_x, dx);
@@ -3582,12 +3582,12 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
         resistor_ie = air_buff_x_n + pml_x_n + calc_index(resistor_max_x, dx);
         resistor_je = air_buff_y_n + pml_y_n + calc_index(resistor_max_y, dy);
         resistor_ke = air_buff_z_n + pml_z_n + calc_index(resistor_max_z, dz);
-    
+
         cout << "resistor_ks: " << resistor_ks;
         cout << "\t resistor_ke: " << resistor_ke << endl;
-        
+
     }
-    
+
      //source index in simulation domain
     int source_is, source_js, source_ks;
     int source_ie, source_je, source_ke;
@@ -3599,10 +3599,10 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 	source_ie = air_buff_x_n + pml_x_n + calc_index(source_max_x, dx);
 	source_je = air_buff_y_n + pml_y_n + calc_index(source_max_y, dy);
 	source_ke = air_buff_z_n + pml_z_n + calc_index(source_max_z, dz);
-    
+
     //source is going to be as the same size as the n_steps
     int source_size = (n_t_steps);
-    
+
     //relation between the voltage input array and is value per node
 	float v_mag_factor;
 	//For x directed source  ;
@@ -3611,9 +3611,9 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 	//v_mag_factor = source_je - source_js;
 	//For z directed source
 	v_mag_factor = source_ke - source_ks;
-    
+
     cout << "Source Position:" << "(is,js,ks) = (" << source_is << ", " << source_js << ", " << source_ks << ") | (ie,je,ke) = (" << source_ie << ", " << source_je << ", " << source_ke << ")" << endl;
-    
+
     //sampled voltage index in simulation domain
 	int sampled_voltage_is, sampled_voltage_ie, sampled_voltage_js, sampled_voltage_je, sampled_voltage_ks, sampled_voltage_ke;
     //sampled voltage index
@@ -3623,7 +3623,7 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 	sampled_voltage_ie = air_buff_x_n + pml_x_n + calc_index(sampled_voltage_max_x, dx);
 	sampled_voltage_je = air_buff_y_n + pml_y_n + calc_index(sampled_voltage_max_y, dy);
 	sampled_voltage_ke = air_buff_z_n + pml_z_n + calc_index(sampled_voltage_max_z, dz);
-    
+
     //sampled voltage size in the axis
 	int volt_NX = sampled_voltage_ie - sampled_voltage_is +1;
 	int volt_NY = sampled_voltage_je - sampled_voltage_js +1;
@@ -3632,10 +3632,10 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
     int volt_NZ_N = NZ_N;
     cout << "Sampled Voltage Position:" << "(is,js,ks) = (" << sampled_voltage_is << ", " << sampled_voltage_js << ", " << sampled_voltage_ks << ") | (ie,je,ke) = (" << sampled_voltage_ie << ", " << sampled_voltage_je << ", " << sampled_voltage_ke << ")" << endl;
     //cout << "Sampled Voltage vector size: X: " << volt_NX << " Y: " << volt_NY << " e Z: " << volt_NZ << "(Z_N: " << volt_NZ_N << " )" << endl;
-    
+
      //sampled current index in simulation domain
 	int sampled_current_is, sampled_current_ie, sampled_current_js, sampled_current_je, sampled_current_ks, sampled_current_ke;
-    
+
     //sampled current index
 	sampled_current_is = air_buff_x_n + pml_x_n + calc_index(sampled_current_min_x, dx);
 	sampled_current_js = air_buff_y_n + pml_y_n + calc_index(sampled_current_min_y, dy);
@@ -3643,7 +3643,7 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 	sampled_current_ie = air_buff_x_n + pml_x_n + calc_index(sampled_current_max_x, dx);
 	sampled_current_je = air_buff_y_n + pml_y_n + calc_index(sampled_current_max_y, dy);
 	sampled_current_ke = air_buff_z_n + pml_z_n + calc_index(sampled_current_max_z, dz);
-   
+
 	//sampled current size in axis
 	int current_NX = sampled_current_ie - sampled_current_is + 2;
 	int current_NY = sampled_current_je - sampled_current_js + 2;
@@ -3652,19 +3652,19 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 	int current_NZ_N = NZ_N;
     cout << "Sampled Current Position:" << "(is,js,ks) = (" << sampled_current_is << ", " << sampled_current_js << ", " << sampled_current_ks << ") | (ie,je,ke) = (" << sampled_current_ie << ", " << sampled_current_je << ", " << sampled_current_ke << ")" << endl;
     //cout << "Sampled Current vector size: X: " << current_NX << " Y: " << current_NY << " e Z: " <<current_NZ << "(Z_N: " << current_NZ_N << " )" << endl;
-    
+
     //Input signal array and its equivalent per node
 	float * d_signal[NUMDEV];
 	float * d_signal_per_node[NUMDEV];
-    
+
  //Define Output variables
 	//Sampled Voltage device array
-    
+
 	float * d_voltage;
     float * h_voltage;
     float * d_volt_tran[NUMDEV];
     float * d_volt0;
-    
+
     //Electric field auxiliars to calculate voltage device array
 	float * E[NUMDEV];
 
@@ -3673,7 +3673,7 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 	float * h_current;
 	float * d_current_tran[NUMDEV];
 	float * d_curr0;
-    
+
 //Magnetic field auxiliars to calculate current device array
 	float * Hx[NUMDEV];
 	float * Hy[NUMDEV];
@@ -3687,28 +3687,28 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 	float * h_Hy[NUMDEV];
 	float * h_Hz[NUMDEV];
 	float * h_E[NUMDEV];
-    
+
 //Create cudastreams
 	cudaStream_t stream_copy[NUMDEV];
 	cudaStream_t stream_compute[NUMDEV];
     //Events to synchronize streams
 	cudaEvent_t event_i[NUMDEV];
     cudaEvent_t event_j[NUMDEV];
-    
-    
+
+
     //Vectors size in bytes
 	float size_bt = (NX * NY) * (NZ_N) * sizeof(float);
     float ghost_size_bt = (NX * NY) * sizeof(float);
 
     //source size in bytes
 	float source_bt = source_size * sizeof(float);
-    
+
     //size in bytes for E sampled
     float size_volt_bt = volt_NX*volt_NY*volt_NZ_N*n_t_steps*sizeof(float);
-    
+
     //size in bytes for H sampled per device
 	float size_current_bt = current_NX*current_NY*current_NZ_N*n_t_steps*sizeof(float);
-    
+
     //grid and block definition
 	// block of threads 1024
 	dim3 block3d(WIDTH*WIDTH, WIDTH*WIDTH, WIDTH);
@@ -3722,19 +3722,19 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 	dim3 block2d(WIDTH*WIDTH, WIDTH*WIDTH, 1);
     // difinition of the 2D grid
 	dim3 grid2d(grid_X, grid_Y, 1);
-    
+
     //1D block size for the source, voltage and current arrays
 	int block = 512;
 	//1D grid Size for the source, voltage and current arrays
-	int grid = (source_size / block) + (((source_size % block) == 0) ? 0 : 1);  
-    
+	int grid = (source_size / block) + (((source_size % block) == 0) ? 0 : 1);
+
     cout << "Simulation Domain Variables" << endl;
     //Ghost Nodes
     float * d_gEx[NUMDEV];
     float * d_gEy[NUMDEV];
     float * d_gHx[NUMDEV];
     float * d_gHy[NUMDEV];
-    
+
 	// Device variables
 	//Ex and its coefficients
 	float * d_Ex[NUMDEV];
@@ -3869,13 +3869,13 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 	float * d_cpsi_hyz[NUMDEV];
 
 	cout << "Allocate Memory on Device and set air to the whole space" << endl;
-    
+
 //allocate memory on device
 	for (int i = 0; i < NUMDEV; i++) {
 
 		// set current device
 		cudaSetDevice(i);
-        
+
 		// allocate device memory
 		HANDLE_ERROR(cudaMalloc((void**)&d_gEx[i], ghost_size_bt));
 		HANDLE_ERROR(cudaMalloc((void**)&d_gEy[i], ghost_size_bt));
@@ -4068,51 +4068,51 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 
 
         switch(source_tp){
-            case 1: 
-                
+            case 1:
+
                 setGauss << < grid, block>> > (d_signal[i], d_signal_per_node[i], source_amp, v_mag_factor, dt, t_0, tau, source_size);
-                
+
                 break;
-                
+
             case 2:
-                
+
                 break;
-                
+
             case 3:
-         
-                setSine<< < grid, block>> > ( d_signal[i], d_signal_per_node[i], v_mag_factor, source_amp, source_freq, dt, pi, source_size) ;       
+
+                setSine<< < grid, block>> > ( d_signal[i], d_signal_per_node[i], v_mag_factor, source_amp, source_freq, dt, pi, source_size) ;
                 break;
         }
 	}
 
 
     cudaSetDevice(0);
-	
+
     HANDLE_ERROR(cudaMalloc((void**)&d_volt0, NUMDEV*source_bt));
     HANDLE_ERROR(cudaMalloc((void**)&d_curr0, NUMDEV*source_bt));
 
 	//d_voltage e d_current
-    cudaSetDevice(0);    
+    cudaSetDevice(0);
 	HANDLE_ERROR(cudaMalloc((void**)&d_voltage, source_bt));
     HANDLE_ERROR(cudaMallocHost((void**)&h_voltage, source_bt));
 	HANDLE_ERROR(cudaMalloc((void**)&d_current, source_bt));
     HANDLE_ERROR(cudaMallocHost((void**)&h_current, source_bt));
-    
+
 	//Define 3D objects in the Domain
 	cout << "CUDA Define 3D Objetcs in Simulation domain" << endl;
-    
+
     if(brick_opt != 0){
-        
+
         for(int j = 0; j < brick_num; j++){
-            
+
             for (int i = 0; i < NUMDEV; i++){
-            
+
                 // set current device
                 cudaSetDevice(i);
 
                 //Calculate the gpu offset
                 gpu_offset = i * NZ_N;
-        
+
                 //set the brick kernel
                 setBrick << <grid3d, block3d >> > (NX, NY, NZ, NZ_N, gpu_offset,
                     d_material_3d_space_eps_x[i], d_material_3d_space_eps_y[i], d_material_3d_space_eps_z[i],
@@ -4122,7 +4122,7 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
                     brick_is[j], brick_js[j], brick_ks[j], brick_ie[j], brick_je[j], brick_ke[j],
                     brick_sigma_e_x[j], brick_sigma_e_y[j], brick_sigma_e_z[j], brick_eps_r_x[j], brick_eps_r_y[j], brick_eps_r_z[j],
                     brick_sigma_m_x[j], brick_sigma_m_y[j], brick_sigma_m_z[j], brick_mu_r_x[j], brick_mu_r_y[j], brick_mu_r_z[j]);
-                
+
             }
         }
 	}
@@ -4147,13 +4147,13 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 			d_material_3d_space_sigma_m_x[i], d_material_3d_space_sigma_m_y[i], d_material_3d_space_sigma_m_z[i],
 			d_eps_r_x[i], d_sigma_e_x[i], d_eps_r_y[i], d_sigma_e_y[i], d_eps_r_z[i], d_sigma_e_z[i],
 			d_mu_r_x[i], d_sigma_m_x[i], d_mu_r_y[i], d_sigma_m_y[i], d_mu_r_z[i], d_sigma_m_z[i]);
-    
+
 	}
 
 
 	cout << "CUDA Define 2D Objects in Simulation Domain" << endl;
 
-	//Defining the 6 sector for the dipole 
+	//Defining the 6 sector for the dipole
 	for (int i = 0; i < 0; i++) {
         /*
 		//Defining the points for the sector
@@ -4178,10 +4178,10 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 		}
 
 
-	
+
 	//create 2D Objects in Material Grid, such as conduction plates
 	if(pec_opt != 0){
-        
+
         for(int j = 0; j< pec_num; j++){
 
             for (int i = 0; i < NUMDEV; i++) {
@@ -4190,20 +4190,20 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 
                 //Calculate the gpu offset
                 gpu_offset = i * NZ_N;
-            
+
                 //define the sector on the simulation domain
                 definePlateZ << <grid3d, block3d >> > (NX, NY, NZ, NZ_N, gpu_offset, d_sigma_e_x[i], d_sigma_e_y[i], pec_sigma_e_x[j], pec_sigma_e_y[j], pec_is[j], pec_js[j], pec_ks[j], pec_ie[j], pec_je[j], pec_ke[j]);
 
-            
+
                 //define the sector on the simulation domain
                 //definePlateZ << <grid3d, block3d >> > (NX, NY, NZ, NZ_N, gpu_offset, d_sigma_e_x[i], d_sigma_e_y[i], plate1_sigma_e_x, plate1_sigma_e_y, plate1_is, plate1_js, plate1_ks, plate1_ie, plate1_je, plate1_ke);
 
                 //define the sector on the simulation domain
                 //definePlateZ << <grid3d, block3d>> > (NX, NY, NZ, NZ_N, gpu_offset, d_sigma_e_x[i], d_sigma_e_y[i], plate2_sigma_e_x, plate2_sigma_e_y, plate2_is, plate2_js, plate2_ks, plate2_ie, plate2_je, plate2_ke);
-        
+
                 //define the sector on the simulation domain
                 //definePlateZ << <grid3d, block3d>> > (NX, NY, NZ, NZ_N, gpu_offset, d_sigma_e_x[i], d_sigma_e_y[i], plate3_sigma_e_x, plate3_sigma_e_y, plate3_is, plate3_js, plate3_ks, plate3_ie, plate3_je, plate3_ke);
-        
+
             }
         }
     }
@@ -4254,7 +4254,7 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 			pml_x_n, pml_y_n, pml_z_n + gpu_offset, pml_x_p, pml_y_p, pml_z_p + gpu_offset,
 			dx, dy, dz, dt,
 			eps_0, pi, mu_0);
-        
+
 	}
 
 
@@ -4266,51 +4266,51 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 
 		// set current device
 		cudaSetDevice(i);
-		
+
 		//Calculate the gpu offset
 		gpu_offset = i * NZ_N;
 
 		//define the source kernel
         switch(source_direction){
-            
+
             case 1:
-                
+
                 defineSourceX << <grid3d, block3d >> >(NX, NXX, NY, NYY, NZ, NZ_N, gpu_offset, source_is, source_js, source_ks, source_ie, source_je, source_ke, d_Cexe[i], d_Cexhz[i], d_Cexhy[i], d_Cexj[i], d_eps_r_x[i], d_sigma_e_x[i], rs, dx, dy, dz, dt, eps_0);
-                
+
                 break;
-                
+
             case 3:
-                
+
                 //defineSourceZ<<<grid3d, block3d>>>(NX, NXX, NY, NYY, NZ, NZ_N, gpu_offset, PA[i], PB[i], source_is, source_js, source_ks, source_ie, source_je, source_ke,   source_ks_ori, source_ke_ori, d_Ceze[i],  d_Cezhy[i], d_Cezhx[i], d_Cezj[i], d_eps_r_z[i], d_sigma_e_z[i], rs, dx, dy, dz, dt, eps_0);
                 defineSourceZ<<<grid3d, block3d>>>(NX, NXX, NY, NYY, NZ, NZ_N, gpu_offset, source_is, source_js, source_ks, source_ie, source_je, source_ke, d_Ceze[i],  d_Cezhy[i], d_Cezhx[i], d_Cezj[i], d_eps_r_z[i], d_sigma_e_z[i], rs, dx, dy, dz, dt, eps_0);
-                
+
                 break;
         }
 
 	}
-	
+
 	//Define Resistor in the simulation domain
     cout << "Define Resistor in Simulation domain" << endl;
 	//source in the domain
     if(resistor_direction != 0) {
-        
+
         for (int i = 0; i < NUMDEV; i++){
             // set current device
             cudaSetDevice(i);
-		
+
             //Calculate the gpu offset
             gpu_offset = i * NZ_N;
-        
+
         //    defineResistor<<<grid3d,block3d>>>(NX, NXX, NY, NYY, NZ, NZ_N, gpu_offset, PA[i], PB[i], resistor_is, resistor_js, resistor_ks, resistor_ie, resistor_je, resistor_ke, resistor_ks_ori, resistor_ke_ori, resistor_direction, d_Ceze[i], d_Cezhy[i], d_Cezhx[i], d_eps_r_z[i], d_sigma_e_z[i], resistor_resist, dx, dy, dz, dt, eps_0);
-        
+
             defineResistor<<<grid3d,block3d>>>(NX, NXX, NY, NYY, NZ, NZ_N, gpu_offset, resistor_is, resistor_js, resistor_ks, resistor_ie, resistor_je, resistor_ke, resistor_direction, d_Ceze[i], d_Cezhy[i], d_Cezhx[i], d_eps_r_z[i], d_sigma_e_z[i], resistor_resist, dx, dy, dz, dt, eps_0);
-        
-            
+
+
         }
     }
 	//FDTD Calculation
 	cout << "FDTD CALC" << endl;
-  
+
     //synchronize devices
 	for (int i = 0; i<NUMDEV; i++) {
 		cudaSetDevice(i);
@@ -4318,7 +4318,7 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 	}
 
 	for(int m = 0; m < n_t_steps; m++){
-        
+
         solver( NUMDEV, m,  k_real,  NX,  NXX,  NY,  NYY,  NZ,  NZ_N,  gpu_offset,
         grid3d, block3d, grid2d, block2d,
         pml_x_n,  pml_x_p,  pml_y_n,  pml_y_p,  pml_z_n,  pml_z_p,
@@ -4360,30 +4360,30 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
         d_volt_tran, E, voltage_direction,
         current_NX, current_NY, current_NZ,  current_NZ_N,  sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke, d_current_tran, Hx, Hy, Hz, current_direction,
         d_volt0, d_voltage, d_curr0, d_current);
-    
+
     HANDLE_ERROR(cudaMemcpy(h_voltage, d_voltage, source_bt, cudaMemcpyDeviceToHost));
     HANDLE_ERROR(cudaMemcpy(h_current, d_current, source_bt, cudaMemcpyDeviceToHost));
     saveTDomain(n_t_steps, h_voltage, 1003);
     saveTDomain(n_t_steps, h_current, 1004);
-   
+
     //synchronize devices
 	for (int i = 0; i<NUMDEV; i++) {
 		cudaSetDevice(i);
 		cudaDeviceSynchronize();
 	}
-	
+
 	//obtain fft
    // calc_otm( d_voltage, d_current, n_t_steps, rs, dt, grid, block);
-    
+
     //synchronize devices
 	for (int i = 0; i<NUMDEV; i++) {
 		cudaSetDevice(i);
 		cudaDeviceSynchronize();
 	}
-	
+
     cout << "Free memory" << endl;
 
-    
+
 }
 
 
