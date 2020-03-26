@@ -224,10 +224,10 @@ int main(int argc, char ** argv) {
   int voltage_direction;
 
 	sampled_voltage_min_x = 7.535e-3;
-	sampled_voltage_min_y = 10*dy;
+	sampled_voltage_min_y = 0*dy;
 	sampled_voltage_min_z = 0e-3;
 	sampled_voltage_max_x = 9.869e-3;
-	sampled_voltage_max_y = 10*dy;
+	sampled_voltage_max_y = 0*dy;
 	sampled_voltage_max_z = 3*dz;
   voltage_direction = 3;
 
@@ -237,10 +237,10 @@ int main(int argc, char ** argv) {
   int current_direction;
 	//Sampling current positions
 	sampled_current_min_x = 7.535e-3;
-	sampled_current_min_y = 10*dy;
+	sampled_current_min_y = 0*dy;
 	sampled_current_min_z = 3*dz;
 	sampled_current_max_x = 9.869e-3;
-	sampled_current_max_y = 10*dy;
+	sampled_current_max_y = 0*dy;
 	sampled_current_max_z = 3*dz;
   current_direction = 2;
 

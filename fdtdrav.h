@@ -3590,7 +3590,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 
 			//cudaEventRecord(event_i[i], stream_compute[i]);
 
-			calc_hHB << < grid3d, block3d >> > (NX, NXX, NY, NYY, NZ, NZ_N, 
+			calc_hHB << < grid2d, block2d >> > (NX, NXX, NY, NYY, NZ, NZ_N, 
 				HB, gpu_offset,
 				pml_x_n, pml_x_p, pml_y_n, pml_y_p, pml_z_n, pml_z_p,
 				d_Ex[i], d_Jx[i],
