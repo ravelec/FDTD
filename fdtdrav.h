@@ -247,7 +247,7 @@ __host__ __device__ void sampleField(int i, int j, int k, int k_real, int m, int
 
 //Kernel to calculate The Magnetic field
 __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N,
-	int HA, int HB, int gpu_offset,
+	int HB, int gpu_offset,
 	int pml_x_n, int pml_x_p, int pml_y_n, int pml_y_p, int pml_z_n, int pml_z_p,
 	float * d_Ex, float * d_Jx,
 	float * d_Ey, float * d_Jy,
@@ -280,9 +280,8 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N,
 
 	int k_real = k + gpu_offset;
 
-	if ((threadId < (NX*NY*NZ_N)) && ((k > HA) && (k < HB) )) {
+	if ((threadId < (NX*NY*NZ_N)) && (k < HB) ) {
  
-
 
 		// (i,j,k) coordinates of the position of the calculated vector in space
 		//int i, j, k;
@@ -545,7 +544,8 @@ __global__ void calc_h(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N,
 }
 
 //Kernel to Calculate the Magnetic Field on the Critical Points
-__global__ void calc_hA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int gpu_offset, int A
+__global__ void calc_hHB(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N,
+	int HB, int gpu_offset,
 	int pml_x_n, int pml_x_p, int pml_y_n, int pml_y_p, int pml_z_n, int pml_z_p,
 	float* d_Ex, float* d_Jx,
 	float* d_Ey, float* d_Jy,
@@ -571,16 +571,17 @@ __global__ void calc_hA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int 
 	//helper to calculate threads global index
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
-	int k = blockIdx.z * blockDim.z + threadIdx.z;
+	int k = HB;
 
 	//threads global index
 	int threadId = i + j * NX + k * NX * NY;
 
+	//k real number in the simulation grid
 	int k_real = k + gpu_offset;
 
-	//if ((threadId < (NX*NY*NZ_N)) && ((k > HA) && (k < HB) )) {
-	if (threadId < (NX * NY * NZ_N)) {
 
+	if (threadId < (NX * NY * (HB+1))) {
+		//if (threadId < (NX * NY * NZ_N)) {
 
 		// (i,j,k) coordinates of the position of the calculated vector in space
 		//int i, j, k;
@@ -623,22 +624,10 @@ __global__ void calc_hA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int 
 
 		//**HX UPTADE
 		// check for boundaries
-		//if ((i < NX) && (j < (NY - 1)) && (k < (NZ - 1))) {
 		if ((i < NXX) && (j < (NYY - 1)) && (k_real < (NZ - 1))) {
 
 			//update Hx
-			if (k == (NZ_N - 1)) {
-
-				//update Hx
-				d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_gEy[e_ghost_k] - d_Ey[threadId])) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - d_Ez[threadId]));
-
-			}
-			else {
-
-				d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_Ey[e_threadId_k] - d_Ey[threadId])) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - d_Ez[threadId]));
-				//d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_Ey[e_threadId_k] - s_Ey_Ez[tz][ty][tx].x)) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - s_Ey_Ez[tz][ty][tx].y));
-
-			}
+			d_Hx[threadId] = (d_Chxh[threadId] * d_Hx[threadId]) + (d_Chxey[threadId] * (d_gEy[e_ghost_k] - d_Ey[threadId])) + (d_Chxez[threadId] * (d_Ez[e_threadId_j] - d_Ez[threadId]));
 
 			//synchronize the threads
 			__syncthreads();
@@ -653,21 +642,12 @@ __global__ void calc_hA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int 
 
 		//**HY UPTADE
 		// check for boundaries
-		//if ((i < (NX - 1)) && (j < (NY)) && (k < (NZ - 1))) {
 		if ((i < (NXX - 1)) && (j < (NYY)) && (k_real < (NZ - 1))) {
 
 			//update Hy
-			if (k == (NZ_N - 1)) {
+			d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (d_Ez[e_threadId_i] - d_Ez[threadId])) + (d_Chyex[threadId] * (d_gEx[e_ghost_k] - d_Ex[threadId]));
 
-				d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (d_Ez[e_threadId_i] - d_Ez[threadId])) + (d_Chyex[threadId] * (d_gEx[e_ghost_k] - d_Ex[threadId]));
-
-			}
-			else {
-
-				d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (d_Ez[e_threadId_i] - d_Ez[threadId])) + (d_Chyex[threadId] * (d_Ex[e_threadId_k] - d_Ex[threadId]));
-				//d_Hy[threadId] = (d_Chyh[threadId] * d_Hy[threadId]) + (d_Chyez[threadId] * (s_Ey_Ez[tz][ty][tx + 1].y - s_Ey_Ez[tz][ty][tx].y)) + (d_Chyex[threadId] * (d_Ex[e_threadId_k] - d_Ex[threadId]));
-
-			}
+			//synchronize the threads
 			__syncthreads();
 			//sampling Hy field
 			sampleField(i, j, k, k_real, m, current_NX, current_NY, current_NZ_N, NZ, 1, threadId, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke, d_Hy, Hy);
@@ -679,16 +659,15 @@ __global__ void calc_hA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int 
 
 		//**HZ UPTADE
 		// check for boundaries
-		//if ((i < (NX - 1)) && (j < (NY - 1)) && (k < (NZ))) {
 		if ((i < (NXX - 1)) && (j < (NYY - 1)) && (k_real < (NZ))) {
 
 			//uptade Hz
 			d_Hz[threadId] = (d_Chzh[threadId] * d_Hz[threadId]) + (d_Chzex[threadId] * (d_Ex[e_threadId_j] - d_Ex[threadId])) + (d_Chzey[threadId] * (d_Ey[e_threadId_i] - d_Ey[threadId]));
-			//d_Hz[threadId] = (d_Chzh[threadId] * d_Hz[threadId]) + (d_Chzex[threadId] * (d_Ex[e_threadId_j] - d_Ex[threadId])) + (d_Chzey[threadId] * (s_Ey_Ez[tz][ty][tx + 1].x - s_Ey_Ez[tz][ty][tx].x));
 
+			//synchronize the threads
+			__syncthreads();
 
 			//sampling Hz field
-			__syncthreads();
 			sampleField(i, j, k, k_real, m, current_NX, current_NY, current_NZ_N, NZ, 1, threadId, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke, d_Hz, Hz);
 
 		}
@@ -700,20 +679,24 @@ __global__ void calc_hA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int 
 
 		//CPML at the x_n region. Update Hy and Hz
 		if ((i < pml_x_n) && (j < (NYY)) && (k_real < NZ)) {
-			//if ((i < pml_x_n) && (j < (NY)) && (k < NZ)) {
 
+			//cpml factors
 			d_Psi_hyx[threadId] = d_cpml_b_mx[i] * d_Psi_hyx[threadId] + d_cpml_a_mx[i] * (d_Ez[e_threadId_i] - d_Ez[threadId]);
 
+			//cpml factors
 			d_Psi_hzx[threadId] = d_cpml_b_mx[i] * d_Psi_hzx[threadId] + d_cpml_a_mx[i] * (d_Ey[e_threadId_i] - d_Ey[threadId]);
 
 			if (k_real < (NZ - 1)) {
 
+				//calca Hy
 				d_Hy[threadId] = d_Hy[threadId] + d_cpsi_hyx[threadId] * d_Psi_hyx[threadId];
 
-			}
+			}		
+			//synchronize the threads
+			__syncthreads();
 			if (j < (NYY - 1)) {
-				//if (j < (NY - 1)) {
 
+				//calc Hz
 				d_Hz[threadId] = d_Hz[threadId] + d_cpsi_hzx[threadId] * d_Psi_hzx[threadId];
 
 			}
@@ -723,19 +706,24 @@ __global__ void calc_hA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int 
 
 		//CPML at the x_p region. Update Hy and Hz
 		if ((i > (NXX - pml_x_p - 1)) && (i < (NXX - 1)) && (j < (NYY)) && (k_real < NZ)) {
-			//if ((i >(NX - pml_x_p - 1)) && (i < (NX - 1)) && (j < (NY)) && (k < NZ)) {
 
+			//cpml factors
 			d_Psi_hyx[threadId] = d_cpml_b_mx[i] * d_Psi_hyx[threadId] + d_cpml_a_mx[i] * (d_Ez[e_threadId_i] - d_Ez[threadId]);
 
+			//cpml factors
 			d_Psi_hzx[threadId] = d_cpml_b_mx[i] * d_Psi_hzx[threadId] + d_cpml_a_mx[i] * (d_Ey[e_threadId_i] - d_Ey[threadId]);
 
 			if (k_real < (NZ - 1)) {
 
+				//calc Hy
 				d_Hy[threadId] = d_Hy[threadId] + d_cpsi_hyx[threadId] * d_Psi_hyx[threadId];
 
 			}
+			//synchronize the threads
+			__syncthreads();
 			if (j < (NYY - 1)) {
-				//if (j < (NY - 1)) {
+				
+				//Calc Hz
 				d_Hz[threadId] = d_Hz[threadId] + d_cpsi_hzx[threadId] * d_Psi_hzx[threadId];
 
 			}
@@ -746,22 +734,25 @@ __global__ void calc_hA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int 
 
 		//CPML at the y_n region. Update Hx and Hz
 		if ((i < (NXX)) && (j < (pml_y_n)) && (k_real < NZ)) {
-			//if ((i < (NX)) && (j < (pml_y_n)) && (k < NZ)) {
 
+			//cpml factors
 			d_Psi_hxy[threadId] = d_cpml_b_my[j] * d_Psi_hxy[threadId] + d_cpml_a_my[j] * (d_Ez[e_threadId_j] - d_Ez[threadId]);
-			//d_Psi_hxy[threadId] = d_cpml_b_my[j] * d_Psi_hxy[threadId] + d_cpml_a_my[j] * (d_Ez[e_threadId_j] - s_Ey_Ez[tz][ty][tx].y);
 
+			//cpml factors
 			d_Psi_hzy[threadId] = d_cpml_b_my[j] * d_Psi_hzy[threadId] + d_cpml_a_my[j] * (d_Ex[e_threadId_j] - d_Ex[threadId]);
 
 
 			if (k_real < (NZ - 1)) {
 
+				//calc Hx
 				d_Hx[threadId] = d_Hx[threadId] + d_cpsi_hxy[threadId] * d_Psi_hxy[threadId];
 
 			}
+			//synchronize the threads
+			__syncthreads();
 			if (i < (NXX - 1)) {
-				//if (i < (NX - 1)) {
-
+				
+				//calc Hz
 				d_Hz[threadId] = d_Hz[threadId] + d_cpsi_hzy[threadId] * d_Psi_hzy[threadId];
 
 			}
@@ -772,22 +763,25 @@ __global__ void calc_hA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int 
 
 		//CPML at the y_p region. Update Hx and Hz
 		if ((j > (NYY - pml_y_p - 1)) && (i < (NXX)) && (j < (NYY - 1)) && (k_real < NZ)) {
-			//if ((j > (NY - pml_y_p - 1)) && (i < (NX)) && (j < (NY - 1)) && (k < NZ)) {
 
+			//cpml factors
 			d_Psi_hxy[threadId] = d_cpml_b_my[j] * d_Psi_hxy[threadId] + d_cpml_a_my[j] * (d_Ez[e_threadId_j] - d_Ez[threadId]);
-			//d_Psi_hxy[threadId] = d_cpml_b_my[j] * d_Psi_hxy[threadId] + d_cpml_a_my[j] * (d_Ez[e_threadId_j] - s_Ey_Ez[tz][ty][tx].y);
 
+			//cpml factors
 			d_Psi_hzy[threadId] = d_cpml_b_my[j] * d_Psi_hzy[threadId] + d_cpml_a_my[j] * (d_Ex[e_threadId_j] - d_Ex[threadId]);
 
 
 			if (k_real < (NZ - 1)) {
 
+				//calc Hx
 				d_Hx[threadId] = d_Hx[threadId] + d_cpsi_hxy[threadId] * d_Psi_hxy[threadId];
 
 			}
+			//synchronize the threads
+			__syncthreads();
 			if (i < (NXX - 1)) {
-				//if (i < (NX - 1)) {
 
+				//calc Hz
 				d_Hz[threadId] = d_Hz[threadId] + d_cpsi_hzy[threadId] * d_Psi_hzy[threadId];
 
 			}
@@ -797,32 +791,25 @@ __global__ void calc_hA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int 
 
 		//CPML at the z_n region. Update Hx and Hy
 		if ((i < (NXX)) && (j < (NYY)) && (k_real < (pml_z_n))) {
-			//if ((i < (NX)) && (j < (NY)) && (k < (pml_z_n))) {
+			
+			//cpml factors
+			d_Psi_hxz[threadId] = d_cpml_b_mz[k] * d_Psi_hxz[threadId] + d_cpml_a_mz[k] * (d_gEy[e_ghost_k] - d_Ey[threadId]);
 
-			if (k == (NZ_N - 1)) {
+			//cpml factors
+			d_Psi_hyz[threadId] = d_cpml_b_mz[k] * d_Psi_hyz[threadId] + d_cpml_a_mz[k] * (d_gEx[e_ghost_k] - d_Ex[threadId]);
 
-				d_Psi_hxz[threadId] = d_cpml_b_mz[k] * d_Psi_hxz[threadId] + d_cpml_a_mz[k] * (d_gEy[e_ghost_k] - d_Ey[threadId]);
-
-				d_Psi_hyz[threadId] = d_cpml_b_mz[k] * d_Psi_hyz[threadId] + d_cpml_a_mz[k] * (d_gEx[e_ghost_k] - d_Ex[threadId]);
-
-			}
-			else {
-
-				d_Psi_hxz[threadId] = d_cpml_b_mz[k] * d_Psi_hxz[threadId] + d_cpml_a_mz[k] * (d_Ey[e_threadId_k] - d_Ey[threadId]);
-
-				d_Psi_hyz[threadId] = d_cpml_b_mz[k] * d_Psi_hyz[threadId] + d_cpml_a_mz[k] * (d_Ex[e_threadId_k] - d_Ex[threadId]);
-
-			}
 
 			if (j < (NYY - 1)) {
-				//if (j < (NY - 1)) {
 
+				//calc Hx
 				d_Hx[threadId] = d_Hx[threadId] + d_cpsi_hxz[threadId] * d_Psi_hxz[threadId];
 
 			}
+			//synchronize the threads
+			__syncthreads();
 			if (i < (NXX - 1)) {
-				//if (i < (NX - 1)) {
-
+				
+				//calc Hy
 				d_Hy[threadId] = d_Hy[threadId] + d_cpsi_hyz[threadId] * d_Psi_hyz[threadId];
 
 			}
@@ -832,51 +819,35 @@ __global__ void calc_hA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int 
 
 		//CPML at the z_p region. Update Hx and Hy
 		if ((k_real > (NZ - pml_z_p - 1)) && (i < (NXX)) && (j < (NYY)) && (k_real < (NZ - 1))) {
-			//if ((k >(NZ - pml_z_p - 1)) && (i < (NX)) && (j < (NY)) && (k < (NZ - 1))) {
 
-			if (k == (NZ_N - 1)) {
+			//cpml factors
+			d_Psi_hxz[threadId] = d_cpml_b_mz[k] * d_Psi_hxz[threadId] + d_cpml_a_mz[k] * (d_gEy[e_ghost_k] - d_Ey[threadId]);
 
-				d_Psi_hxz[threadId] = d_cpml_b_mz[k] * d_Psi_hxz[threadId] + d_cpml_a_mz[k] * (d_gEy[e_ghost_k] - d_Ey[threadId]);
-
-				d_Psi_hyz[threadId] = d_cpml_b_mz[k] * d_Psi_hyz[threadId] + d_cpml_a_mz[k] * (d_gEx[e_ghost_k] - d_Ex[threadId]);
-
-			}
-			else {
-
-				d_Psi_hxz[threadId] = d_cpml_b_mz[k] * d_Psi_hxz[threadId] + d_cpml_a_mz[k] * (d_Ey[e_threadId_k] - d_Ey[threadId]);
-
-				d_Psi_hyz[threadId] = d_cpml_b_mz[k] * d_Psi_hyz[threadId] + d_cpml_a_mz[k] * (d_Ex[e_threadId_k] - d_Ex[threadId]);
-
-			}
+			//cpml factos
+			d_Psi_hyz[threadId] = d_cpml_b_mz[k] * d_Psi_hyz[threadId] + d_cpml_a_mz[k] * (d_gEx[e_ghost_k] - d_Ex[threadId]);
 
 			if (j < (NYY - 1)) {
-				//if (j < (NY - 1)) {
 
+				//calc Hx
 				d_Hx[threadId] = d_Hx[threadId] + d_cpsi_hxz[threadId] * d_Psi_hxz[threadId];
 
 			}
+			//synchronize the threads
+			__syncthreads();
 			if (i < (NXX - 1)) {
-				//if (i < (NX - 1)) {
 
+				//calc Hy
 				d_Hy[threadId] = d_Hy[threadId] + d_cpsi_hyz[threadId] * d_Psi_hyz[threadId];
 
 			}
 
 		}
+		//synchronize threads
 		__syncthreads();
-
-		//sampleField( i, j, k, k_real, m,current_NX, current_NY, current_NZ_N, NZ, 1, k_offset, threadId, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_curret_ke,  d_Hx, Hx);
-
-		//sampleField( i, j, k, k_real, m,current_NX, current_NY, current_NZ_N, NZ, 1, k_offset, threadId, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke,  d_Hy, Hy);
-
-		//sampleField( i, j, k, k_real, m,current_NX, current_NY, current_NZ_N, NZ, 1, k_offset, threadId, sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke,  d_Hz, Hz);
 
 	}
 
 }
-
-
-
 
 //Kernel to calculate The Electric field
 __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int gpu_offset, int volt_offset,
@@ -1218,6 +1189,7 @@ __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int g
 
 	}
 }
+
 
 
 //Initialize the device variables. Setting everything as the medium air
@@ -3490,7 +3462,8 @@ void calcVoltCurrent(int NUMDEV, float dx, float dy, float dz, int n_t_steps, in
 
 }
 
-void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int NZ, int NZ_N, int gpu_offset,
+void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int NZ, int NZ_N,
+	int HB, int gpu_offset,
     dim3 grid3d, dim3 block3d, dim3 grid2d, dim3 block2d,
 	int pml_x_n, int pml_x_p, int pml_y_n, int pml_y_p, int pml_z_n, int pml_z_p,
 	float ** d_Ex, float ** d_Jx, float ** d_Cexe, float ** d_Cexhz, float ** d_Cexhy, float ** d_Cexj,
@@ -3601,6 +3574,66 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 			cudaDeviceSynchronize();
 		}
 
+
+
+
+
+
+		//Calculations Magnetic Field
+		for (int i = 0; i < (NUMDEV - 1); i++) {
+			// set current device
+			cudaSetDevice(i);
+
+			//Calculate the gpu offset
+			gpu_offset = i * NZ_N;
+			volt_offset = i * volt_NZ_N;
+
+			//cudaEventRecord(event_i[i], stream_compute[i]);
+
+			calc_hHB << < grid3d, block3d >> > (NX, NXX, NY, NYY, NZ, NZ_N, 
+				HB, gpu_offset,
+				pml_x_n, pml_x_p, pml_y_n, pml_y_p, pml_z_n, pml_z_p,
+				d_Ex[i], d_Jx[i],
+				d_Ey[i], d_Jy[i],
+				d_Ez[i], d_Jz[i],
+				d_gEx[i], d_gEy[i],
+				d_Hx[i], d_Mx[i], d_Chxh[i], d_Chxey[i], d_Chxez[i], d_Chxm[i],
+				d_Hy[i], d_My[i], d_Chyh[i], d_Chyez[i], d_Chyex[i], d_Chym[i],
+				d_Hz[i], d_Mz[i], d_Chzh[i], d_Chzex[i], d_Chzey[i], d_Chzm[i],
+				d_cpml_b_mx[i], d_cpml_a_mx[i],
+				d_cpml_b_my[i], d_cpml_a_my[i],
+				d_cpml_b_mz[i], d_cpml_a_mz[i],
+				d_Psi_eyx[i], d_Psi_ezx[i], d_Psi_hyx[i], d_Psi_hzx[i],
+				d_cpsi_eyx[i], d_cpsi_ezx[i], d_cpsi_hyx[i], d_cpsi_hzx[i],
+				d_Psi_exy[i], d_Psi_ezy[i], d_Psi_hxy[i], d_Psi_hzy[i],
+				d_cpsi_exy[i], d_cpsi_ezy[i], d_cpsi_hxy[i], d_cpsi_hzy[i],
+				d_Psi_exz[i], d_Psi_eyz[i], d_Psi_hxz[i], d_Psi_hyz[i],
+				d_cpsi_exz[i], d_cpsi_eyz[i], d_cpsi_hxz[i], d_cpsi_hyz[i],
+				sampled_current_is, sampled_current_js, sampled_current_ks, sampled_current_ie, sampled_current_je, sampled_current_ke,
+				current_NX, current_NY, current_NZ_N,
+				m, Hx[i], Hy[i], Hz[i]);
+
+
+		}
+
+
+
+		//synchronize streams
+
+		//synchronize devices
+		for (int i = 0; i < NUMDEV; i++) {
+			cudaSetDevice(i);
+			cudaDeviceSynchronize();
+		}
+
+
+
+
+
+
+
+
+
 		//Calculations Magnetic Field
 		for (int i = 0; i < NUMDEV; i++)	{
 			// set current device
@@ -3612,7 +3645,8 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 
 			//cudaEventRecord(event_i[i], stream_compute[i]);
 
-			calc_h << < grid3d, block3d >> > (NX, NXX, NY, NYY, NZ, NZ_N, gpu_offset,
+			calc_h << < grid3d, block3d >> > (NX, NXX, NY, NYY, NZ, NZ_N,
+				HB, gpu_offset,
 				pml_x_n, pml_x_p, pml_y_n, pml_y_p, pml_z_n, pml_z_p,
 				d_Ex[i], d_Jx[i],
 				d_Ey[i], d_Jy[i],
@@ -3801,6 +3835,8 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 
 	//Z per GPU
     int NZ_N = (NZ / NUMDEV);
+
+	int HB = NZ_N - 1;
 
     //Global k
     int k_real = 0;
@@ -4624,38 +4660,39 @@ void marchingLoop(const int NUMDEV, float eps_0,  float pi ,  float mu_0,  float
 
 	for(int m = 0; m < n_t_steps; m++){
 
-        solver( NUMDEV, m,  k_real,  NX,  NXX,  NY,  NYY,  NZ,  NZ_N,  gpu_offset,
-        grid3d, block3d, grid2d, block2d,
-        pml_x_n,  pml_x_p,  pml_y_n,  pml_y_p,  pml_z_n,  pml_z_p,
-        d_Ex,   d_Jx,   d_Cexe,   d_Cexhz,   d_Cexhy,   d_Cexj,
-        d_Ey,   d_Jy,   d_Ceye,   d_Ceyhx,   d_Ceyhz,   d_Ceyj,
-        d_Ez,   d_Jz,   d_Ceze,   d_Cezhy,   d_Cezhx,   d_Cezj,
-        d_Hx,   d_Mx,   d_Chxh,   d_Chxey,   d_Chxez,   d_Chxm,
-        d_Hy,   d_My,   d_Chyh,   d_Chyez,   d_Chyex,   d_Chym,
-        d_Hz,   d_Mz,   d_Chzh,   d_Chzex,   d_Chzey,   d_Chzm,
-        d_gEx, d_gEy, d_gHx, d_gHy,
-        d_cpml_b_mx,   d_cpml_a_mx,
-        d_cpml_b_my,   d_cpml_a_my,
-        d_cpml_b_mz,   d_cpml_a_mz,
-        d_cpml_b_ex,   d_cpml_a_ex,
-        d_cpml_b_ey,   d_cpml_a_ey,
-        d_cpml_b_ez,   d_cpml_a_ez,
-        d_Psi_eyx,   d_Psi_ezx,   d_Psi_hyx,   d_Psi_hzx,
-        d_cpsi_eyx,   d_cpsi_ezx,   d_cpsi_hyx,   d_cpsi_hzx,
-        d_Psi_exy,   d_Psi_ezy,   d_Psi_hxy,   d_Psi_hzy,
-        d_cpsi_exy,   d_cpsi_ezy,   d_cpsi_hxy,   d_cpsi_hzy,
-        d_Psi_exz,   d_Psi_eyz,   d_Psi_hxz,   d_Psi_hyz,
-        d_cpsi_exz,   d_cpsi_eyz,   d_cpsi_hxz,   d_cpsi_hyz,
-        d_signal_per_node,  source_is,  source_js,
-        source_ks,  source_ie,  source_je,  source_ke,
-        sampled_voltage_is,  sampled_voltage_js,  sampled_voltage_ks,  sampled_voltage_ie,  sampled_voltage_je,  sampled_voltage_ke,
-        volt_NX,  volt_NY,  volt_NZ_N,
-        E,  volt_offset,
-        sampled_current_is,  sampled_current_js,  sampled_current_ks,  sampled_current_ie,  sampled_current_je,  sampled_current_ke,
-        current_NX,  current_NY,  current_NZ_N,
-        Hx,   Hy,   Hz,
-        stream_copy,   stream_compute, event_i, event_j,
-        size_bt,   d_sigma_e_x,   d_sigma_e_y,   d_sigma_e_z,   d_current_tran);
+        solver( NUMDEV, m,  k_real,  NX,  NXX,  NY,  NYY,  NZ,  NZ_N,  
+			HB, gpu_offset,
+			grid3d, block3d, grid2d, block2d,
+			pml_x_n,  pml_x_p,  pml_y_n,  pml_y_p,  pml_z_n,  pml_z_p,
+			d_Ex,   d_Jx,   d_Cexe,   d_Cexhz,   d_Cexhy,   d_Cexj,
+			d_Ey,   d_Jy,   d_Ceye,   d_Ceyhx,   d_Ceyhz,   d_Ceyj,
+			d_Ez,   d_Jz,   d_Ceze,   d_Cezhy,   d_Cezhx,   d_Cezj,
+			d_Hx,   d_Mx,   d_Chxh,   d_Chxey,   d_Chxez,   d_Chxm,
+			d_Hy,   d_My,   d_Chyh,   d_Chyez,   d_Chyex,   d_Chym,
+			d_Hz,   d_Mz,   d_Chzh,   d_Chzex,   d_Chzey,   d_Chzm,
+			d_gEx, d_gEy, d_gHx, d_gHy,
+			d_cpml_b_mx,   d_cpml_a_mx,
+			d_cpml_b_my,   d_cpml_a_my,
+			d_cpml_b_mz,   d_cpml_a_mz,
+			d_cpml_b_ex,   d_cpml_a_ex,
+			d_cpml_b_ey,   d_cpml_a_ey,
+			d_cpml_b_ez,   d_cpml_a_ez,
+			d_Psi_eyx,   d_Psi_ezx,   d_Psi_hyx,   d_Psi_hzx,
+			d_cpsi_eyx,   d_cpsi_ezx,   d_cpsi_hyx,   d_cpsi_hzx,
+			d_Psi_exy,   d_Psi_ezy,   d_Psi_hxy,   d_Psi_hzy,
+			d_cpsi_exy,   d_cpsi_ezy,   d_cpsi_hxy,   d_cpsi_hzy,
+			d_Psi_exz,   d_Psi_eyz,   d_Psi_hxz,   d_Psi_hyz,
+			d_cpsi_exz,   d_cpsi_eyz,   d_cpsi_hxz,   d_cpsi_hyz,
+			d_signal_per_node,  source_is,  source_js,
+			source_ks,  source_ie,  source_je,  source_ke,
+			sampled_voltage_is,  sampled_voltage_js,  sampled_voltage_ks,  sampled_voltage_ie,  sampled_voltage_je,  sampled_voltage_ke,
+			volt_NX,  volt_NY,  volt_NZ_N,
+			E,  volt_offset,
+			sampled_current_is,  sampled_current_js,  sampled_current_ks,  sampled_current_ie,  sampled_current_je,  sampled_current_ke,
+			current_NX,  current_NY,  current_NZ_N,
+			Hx,   Hy,   Hz,
+			stream_copy,   stream_compute, event_i, event_j,
+			size_bt,   d_sigma_e_x,   d_sigma_e_y,   d_sigma_e_z,   d_current_tran);
 
     }
 
