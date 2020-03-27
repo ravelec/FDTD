@@ -966,17 +966,19 @@ __global__ void calc_e(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N,
 
 		if ((i < (NXX - 1)) && (j < (NYY - 1)) && (k_real < (NZ - 1)) && (j > 0) && (i > 0)) {
 
+			d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j])) + d_Cezj[threadId] * (d_signal_per_node[m]);
+
 			//update Ez
-            if ((i >= (source_is)) && (i <= (source_ie)) && (j >= (source_js)) && (j <= (source_je)) && (k_real >= (source_ks)) && (k_real < (source_ke))) {
+            //if ((i >= (source_is)) && (i <= (source_ie)) && (j >= (source_js)) && (j <= (source_je)) && (k_real >= (source_ks)) && (k_real < (source_ke))) {
 
-				d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j])) + d_Cezj[threadId] * (d_signal_per_node[m]);
+				//d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j])) + d_Cezj[threadId] * (d_signal_per_node[m]);
 
-            } else {
+            //} else {
 
-                d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j]));
+                //d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j]));
 
 
-            }
+            //}
 
             //synchronize the threads
             //__syncthreads();
@@ -1274,17 +1276,20 @@ __global__ void calc_eHA(int NX, int NXX, int NY, int NYY, int NZ, int NZ_N,
 		if ((i < (NXX - 1)) && (j < (NYY - 1)) && (k_real < (NZ - 1)) && (j > 0) && (i > 0)) {
 
 			//update Ez
-			if ((i >= (source_is)) && (i <= (source_ie)) && (j >= (source_js)) && (j <= (source_je)) && (k_real >= (source_ks)) && (k_real < (source_ke))) {
+			
+			d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j])) + d_Cezj[threadId] * (d_signal_per_node[m]);
+			
+			//if ((i >= (source_is)) && (i <= (source_ie)) && (j >= (source_js)) && (j <= (source_je)) && (k_real >= (source_ks)) && (k_real < (source_ke))) {
 
-				d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j])) + d_Cezj[threadId] * (d_signal_per_node[m]);
+				//d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j])) + d_Cezj[threadId] * (d_signal_per_node[m]);
 
-			}
-			else {
+			//}
+			//else {
 
-				d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j]));
+				//d_Ez[threadId] = (d_Ceze[threadId] * d_Ez[threadId]) + (d_Cezhy[threadId] * (d_Hy[threadId] - d_Hy[d_threadId_i])) + (d_Cezhx[threadId] * (d_Hx[threadId] - d_Hx[d_threadId_j]));
 
 
-			}
+			//}
 
 			//synchronize the threads
 			__syncthreads();
