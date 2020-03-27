@@ -3787,7 +3787,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 		//cudaEventRecord(event_i[i], stream_compute[i]);
 
 		//kernel do calculate the Magnetic Field on the edge
-		calc_hHB << < grid2d, block2d >> > (NX, NXX, NY, NYY, NZ, NZ_N,
+		calc_hHB << < grid2d, block2d, 0, stream_copy[i] >> > (NX, NXX, NY, NYY, NZ, NZ_N,
 			HB, gpu_offset,
 			pml_x_n, pml_x_p, pml_y_n, pml_y_p, pml_z_n, pml_z_p,
 			d_Ex[i], d_Jx[i],
@@ -3832,7 +3832,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 		//cudaEventRecord(event_i[i], stream_compute[i]);
 
 		//kernel do calculate the Magnetic Fields
-		calc_h << < grid3d, block3d >> > (NX, NXX, NY, NYY, NZ, NZ_N,
+		calc_h << < grid3d, block3d, 0, stream_compute[i] >> > (NX, NXX, NY, NYY, NZ, NZ_N,
 			HB, gpu_offset,
 			pml_x_n, pml_x_p, pml_y_n, pml_y_p, pml_z_n, pml_z_p,
 			d_Ex[i], d_Jx[i],
@@ -3874,13 +3874,13 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 		//PA[i+1] <-- HB[i]
 		//HANDLE_ERROR(cudaMemcpyAsync(d_Hx[i + 1], d_Hx[i] + NX*NY*(NZ_N - 2), NX*NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_halo[i]));
 		//HANDLE_ERROR(cudaMemcpyPeerAsync(d_Hx[i + 1], i+1, d_Hx[i] + NX*NY*(NZ_N - 2), i, NX*NY * sizeof(float), stream_compute[i]));
-		HANDLE_ERROR(cudaMemcpy(d_gHx[i + 1], d_Hx[i] + NX * NY * (NZ_N - 1), NX * NY * sizeof(float), cudaMemcpyDeviceToDevice));
+		HANDLE_ERROR(cudaMemcpyAsync(d_gHx[i + 1], d_Hx[i] + NX * NY * (NZ_N - 1), NX * NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_copy[i]));
 
 		//HY
 		//PA[i+1] <-- HB[i]
 		//HANDLE_ERROR(cudaMemcpyAsync(d_Hy[i + 1], d_Hy[i] + NX*NY*(NZ_N - 2), NX*NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_halo[i]));
 		//HANDLE_ERROR(cudaMemcpyPeerAsync(d_Hy[i + 1], i + 1, d_Hy[i] + NX*NY*(NZ_N - 2), i, NX*NY * sizeof(float), stream_compute[i]));
-		HANDLE_ERROR(cudaMemcpy(d_gHy[i + 1], d_Hy[i] + NX * NY * (NZ_N - 1), NX * NY * sizeof(float), cudaMemcpyDeviceToDevice));
+		HANDLE_ERROR(cudaMemcpyAsync(d_gHy[i + 1], d_Hy[i] + NX * NY * (NZ_N - 1), NX * NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_copy[i]));
 
 		//HZ
 		//PA[i+1] <-- HB[i]
@@ -3891,6 +3891,11 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 	}
 
 	//synchronize streams
+	for (int i = 0; i < NUMDEV; i++) {
+		cudaSetDevice(i);
+		cudaStreamSynchronize(stream_copy[i]);
+		cudaStreamSynchronize(stream_compute[i]);
+	}
 
 	//synchronize devices
 	for (int i = 0; i < NUMDEV; i++) {
@@ -3911,7 +3916,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 
 		//cudaEventRecord(event_j[i], stream_compute[i]);
 
-        calc_eHA << <grid2d, block2d >> > (NX, NXX, NY, NYY, NZ, NZ_N,
+        calc_eHA << <grid2d, block2d, 0, stream_copy[i] >> > (NX, NXX, NY, NYY, NZ, NZ_N,
 			HA, gpu_offset, volt_offset,
 			pml_x_n, pml_x_p, pml_y_n, pml_y_p, pml_z_n, pml_z_p,
 			d_Ex[i], d_Jx[i], d_Cexe[i], d_Cexhz[i], d_Cexhy[i], d_Cexj[i],
@@ -3960,7 +3965,7 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 
 		//cudaEventRecord(event_j[i], stream_compute[i]);
 
-		calc_e << <grid3d, block3d >> > (NX, NXX, NY, NYY, NZ, NZ_N, 
+		calc_e << <grid3d, block3d, 0, stream_compute[i] >> > (NX, NXX, NY, NYY, NZ, NZ_N, 
 			HA, gpu_offset, volt_offset,
 			pml_x_n, pml_x_p, pml_y_n, pml_y_p, pml_z_n, pml_z_p,
 			d_Ex[i], d_Jx[i], d_Cexe[i], d_Cexhz[i], d_Cexhy[i], d_Cexj[i],
@@ -4003,13 +4008,13 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 		//PB[i-1] <-- HA[i]
 		//HANDLE_ERROR(cudaMemcpyAsync(d_Ex[i - 1] + NX*NY*(NZ_N - 1), d_Ex[i] + NX*NY, NX*NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_Hx[i]));
 		//HANDLE_ERROR(cudaMemcpyPeerAsync(d_Ex[i - 1] + NX*NY*(NZ_N - 1), i - 1, d_Ex[i] + NX*NY, i, NX*NY * sizeof(float), stream_compute[i]));
-		HANDLE_ERROR(cudaMemcpy(d_gEx[i-1], d_Ex[i], NX*NY * sizeof(float), cudaMemcpyDeviceToDevice));
+		HANDLE_ERROR(cudaMemcpyAsync(d_gEx[i-1], d_Ex[i], NX*NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_copy[i]));
 
 		//EY
 		//PB[i-1] <-- HA[i]
 		//HANDLE_ERROR(cudaMemcpyAsync(d_Ey[i - 1] + NX*NY*(NZ_N - 1), d_Ey[i] + NX*NY, NX*NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_Hx[i]));
 		//HANDLE_ERROR(cudaMemcpyPeerAsync(d_Ey[i - 1] + NX*NY*(NZ_N - 1), i - 1, d_Ey[i] + NX*NY, i, NX*NY * sizeof(float), stream_compute[i]));
-		HANDLE_ERROR(cudaMemcpy(d_gEy[i-1], d_Ey[i], NX*NY * sizeof(float), cudaMemcpyDeviceToDevice));
+		HANDLE_ERROR(cudaMemcpyAsync(d_gEy[i-1], d_Ey[i], NX*NY * sizeof(float), cudaMemcpyDeviceToDevice, stream_copy[i]));
 
 		//EZ
 		//PB[i-1] <-- HA[i]
@@ -4020,6 +4025,11 @@ void solver(int NUMDEV, int m, int k_real, int NX, int NXX, int NY, int NYY, int
 	}
 
     //synchronize streams
+	for (int i = 0; i < NUMDEV; i++) {
+		cudaSetDevice(i);
+		cudaStreamSynchronize(stream_copy[i]);
+		cudaStreamSynchronize(stream_compute[i]);
+	}
 
     //synchronize devices
 	for (int i = 0; i<NUMDEV; i++) {
