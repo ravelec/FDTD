@@ -31,16 +31,16 @@ int main(int argc, char ** argv) {
 	float eps_0 = 8.854187817e-12;		// permittivity of free space
 	float pi = 3.1415;					// pi
 	float mu_0 = (4 * pi)*1e-7;			// permeability of free space
-  float c = 1 / sqrt(mu_0*eps_0);		// speed of light
+    float c = 1 / sqrt(mu_0*eps_0);		// speed of light   
 
   //Define space Parameters
 	float dx, dy, dz, dt;		// cell size x, y and z dimensions//Time step
-	dx = 0.389e-3;
-	dy = 0.4e-3;
-	dz = 0.265e-3 ;
+	dx = 0.1e-3;
+	dy = 0.1e-3;
+	dz = 0.1e-3 ;
 
 	float courant_factor;	// courant factor
-	courant_factor = 1;
+	courant_factor = 0.9;
 
     //time step size
 	dt = (1 / (c*sqrt((1 / pow(dx, 2)) + (1 / pow(dy, 2)) + (1 / pow(dz, 2)))));
@@ -100,18 +100,18 @@ int main(int argc, char ** argv) {
   //opt == 0, do not construct object
   brick_opt = 1;
 
-  brick_min_x[0]= 0e-3;
+  brick_min_x[0] = 0e-3;
   brick_min_y[0] = 0e-3;
   brick_min_z[0] = 0e-3;
-  brick_max_x[0] = 60*dx;
-  brick_max_y[0] = 100*dy;
-  brick_max_z[0] = 3*dz;
-  brick_sigma_e_x[0] = 0.0004;
-  brick_sigma_e_y[0] =0.0004;
-  brick_sigma_e_z[0] = 0.0004;
-  brick_eps_r_x[0] = 2.2;
-  brick_eps_r_y[0] = 2.2;
-  brick_eps_r_z[0] = 2.2;
+  brick_max_x[0] = 1000*dx;
+  brick_max_y[0] = 1000*dy;
+  brick_max_z[0] = 50*dz;
+  brick_sigma_e_x[0] = 1.2e-38;
+  brick_sigma_e_y[0] = 1.2e-38;
+  brick_sigma_e_z[0] = 1.2e-38;
+  brick_eps_r_x[0] = 1;
+  brick_eps_r_y[0] = 1;
+  brick_eps_r_z[0] = 1;
   brick_sigma_m_x[0] = 1.2e-38;
   brick_sigma_m_y[0] = 1.2e-38;
   brick_sigma_m_z[0] = 1.2e-38;
@@ -133,7 +133,7 @@ int main(int argc, char ** argv) {
   //opt == 0, do not construct object
   int pec_opt;
 
-  pec_opt = 1;
+  pec_opt = 0;
 
     //PEC 1
   pec_min_x[0]= 0;
@@ -172,12 +172,12 @@ int main(int argc, char ** argv) {
   //create source
 	//start and end of the source
 	//Source coordinates in space
-	float source_min_x = 7.535e-3;
-	float source_min_y = 0e-3;
-	float source_min_z = 0e-3;
-	float source_max_x = 9.869e-3;
-	float source_max_y = 0e-3;
-	float source_max_z = 3*dz;
+	float source_min_x = 495*dx;
+	float source_min_y = 495*dy;
+	float source_min_z = 20*dz;
+	float source_max_x = 495*dx;
+	float source_max_y = 505*dy;
+	float source_max_z = 30*dz;
 
   //source type : 1 gaussian pulse, 2 gaussian derivative and 3 senoidal
   int source_tp = 1;
@@ -185,15 +185,18 @@ int main(int argc, char ** argv) {
   float source_freq = 1e8;
   //source amplitude
   float source_amp = 1;
-	//Source resistance
-  float rs = 50;
-	//Source direction
+  //Source resistance
+  float rs = 10;
+    //Source direction
 	int source_direction = 3;
   //Gaussian Pulse parameters
 	float nc = 20;
 	float tau = (nc*dy) / (2 * c);
 	//tau = 15e-12;
 	float t_0 = 3 * tau;
+    //hard voltage or with internal resistance
+    //0 is hard source
+    //int hr = 0;
 
   //Create Resistor
   //resistor coordinates in space
@@ -223,25 +226,25 @@ int main(int argc, char ** argv) {
   //sampled voltage direction
   int voltage_direction;
 
-	sampled_voltage_min_x = 7.535e-3;
-	sampled_voltage_min_y = 0*dy;
-	sampled_voltage_min_z = 0e-3;
-	sampled_voltage_max_x = 9.869e-3;
-	sampled_voltage_max_y = 0*dy;
-	sampled_voltage_max_z = 3*dz;
+	sampled_voltage_min_x = source_min_x;
+	sampled_voltage_min_y = source_min_y;
+	sampled_voltage_min_z = source_min_z;
+	sampled_voltage_max_x = source_max_x;
+	sampled_voltage_max_y = source_min_y;
+	sampled_voltage_max_z = source_max_z;
     voltage_direction = 3;
 
 	//Sampled Current Index
 	float sampled_current_min_x, sampled_current_max_x, sampled_current_min_y, sampled_current_max_y, sampled_current_min_z, sampled_current_max_z;
-  //sampled current direction
-  int current_direction;
+    //sampled current direction
+    int current_direction;
 	//Sampling current positions
-	sampled_current_min_x = 7.535e-3;
-	sampled_current_min_y = 10*dy;
-	sampled_current_min_z = 3*dz;
-	sampled_current_max_x = 9.869e-3;
-	sampled_current_max_y = 10*dy;
-	sampled_current_max_z = 3*dz;
+	sampled_current_min_x = source_min_x;
+	sampled_current_min_y = source_max_y;
+	sampled_current_min_z = source_max_z;
+	sampled_current_max_x = source_max_x;
+	sampled_current_max_y = source_max_y;
+	sampled_current_max_z = source_max_z;
     current_direction = 2;
 
   //calculate size of the box
